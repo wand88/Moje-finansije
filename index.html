@@ -1,0 +1,2500 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2a78d6">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Finansije">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Moje finansije</title>
+<style>
+:root{
+  --surface-1:#fcfcfb; --page:#f9f9f7;
+  --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --baseline:#c3c2b7; --border:rgba(11,11,11,0.10);
+  --s1:#2a78d6; --s2:#1baf7a; --s3:#eda100; --s4:#008300;
+  --s5:#4a3aa7; --s6:#e34948; --s7:#e87ba4; --s8:#eb6834;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --good-text:#006300;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --surface-1:#1a1a19; --page:#0d0d0d;
+    --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --baseline:#383835; --border:rgba(255,255,255,0.10);
+    --s1:#3987e5; --s2:#199e70; --s3:#c98500; --s4:#008300;
+    --s5:#9085e9; --s6:#e66767; --s7:#d55181; --s8:#d95926;
+    --good-text:#0ca30c;
+  }
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:var(--page); color:var(--ink);
+  min-height:100vh; font-size:15px; line-height:1.45;
+}
+header{padding:20px 24px 0; max-width:1100px; margin:0 auto;}
+header h1{font-size:22px; font-weight:700;}
+header p{color:var(--ink-2); font-size:13px; margin-top:2px;}
+nav{
+  display:flex; gap:2px; flex-wrap:wrap;
+  max-width:1100px; margin:14px auto 0; padding:0 24px;
+  border-bottom:1px solid var(--grid);
+}
+nav button{
+  font:inherit; font-size:13.5px; font-weight:600;
+  background:none; border:none; color:var(--ink-2);
+  padding:10px 11px; cursor:pointer;
+  border-bottom:2px solid transparent; margin-bottom:-1px;
+}
+nav button.active{color:var(--ink); border-bottom-color:var(--s1);}
+nav button:hover{color:var(--ink);}
+.filterbar{
+  max-width:1100px; margin:0 auto; padding:12px 24px 0;
+  display:flex; gap:6px; flex-wrap:wrap; align-items:center;
+}
+.filterbar .flabel{font-size:12px; color:var(--muted); font-weight:600; margin-right:4px;}
+.filterbar button{
+  font:inherit; font-size:12.5px; font-weight:600;
+  border:1px solid var(--border); background:var(--surface-1);
+  color:var(--ink-2); border-radius:99px; padding:5px 12px; cursor:pointer;
+}
+.filterbar button.active{background:var(--ink); border-color:var(--ink); color:var(--page);}
+main{max-width:1100px; margin:0 auto; padding:18px 24px 60px;}
+.view{display:none;}
+.view.active{display:block;}
+
+.tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(175px,1fr)); gap:12px; margin-bottom:20px;}
+.tile{background:var(--surface-1); border:1px solid var(--border); border-radius:10px; padding:14px 16px;}
+.tile .label{font-size:12px; color:var(--ink-2); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+.tile .value{font-size:25px; font-weight:700; margin-top:4px;}
+.tile .sub{font-size:12px; color:var(--muted); margin-top:2px;}
+.tile .value.pos{color:var(--good-text);}
+.tile .value.neg{color:var(--crit);}
+
+.card{background:var(--surface-1); border:1px solid var(--border); border-radius:10px; padding:18px; margin-bottom:20px;}
+.card h2{font-size:15px; font-weight:700; margin-bottom:2px;}
+.card .desc{font-size:12.5px; color:var(--ink-2); margin-bottom:14px;}
+.legend{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px; font-size:12.5px; color:var(--ink-2);}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.legend i{width:10px; height:10px; border-radius:3px; display:inline-block;}
+
+.chart-wrap{position:relative; width:100%; overflow-x:auto;}
+.chart-wrap svg{display:block; width:100%; height:auto;}
+.tooltip{
+  position:absolute; pointer-events:none; z-index:10;
+  background:var(--surface-1); border:1px solid var(--border);
+  box-shadow:0 4px 14px rgba(0,0,0,.14);
+  border-radius:8px; padding:8px 10px; font-size:12.5px;
+  display:none; min-width:120px;
+}
+.tooltip .t-title{font-weight:700; margin-bottom:3px;}
+.tooltip .t-row{display:flex; justify-content:space-between; gap:14px; color:var(--ink-2);}
+.tooltip .t-row b{color:var(--ink); font-variant-numeric:tabular-nums;}
+.tooltip .t-row i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px;}
+
+table{width:100%; border-collapse:collapse; font-size:13.5px;}
+th{text-align:left; color:var(--ink-2); font-size:12px; text-transform:uppercase; letter-spacing:.03em; padding:8px 10px; border-bottom:1px solid var(--grid);}
+td{padding:8px 10px; border-bottom:1px solid var(--grid); vertical-align:middle;}
+td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+tr:last-child td{border-bottom:none;}
+.table-scroll{overflow-x:auto;}
+.cat-dot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:7px;vertical-align:baseline;}
+
+.months{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px;}
+.months button{
+  font:inherit; font-size:13px; font-weight:600;
+  border:1px solid var(--border); background:var(--surface-1);
+  color:var(--ink-2); border-radius:8px; padding:7px 13px; cursor:pointer;
+}
+.months button.active{background:var(--s1); border-color:var(--s1); color:#fff;}
+
+form.grid{display:grid; gap:10px; align-items:end;}
+form.tx{grid-template-columns:145px 1fr 140px 1fr 130px auto;}
+@media (max-width:960px){ form.tx{grid-template-columns:1fr 1fr;} }
+label{display:block; font-size:12px; font-weight:600; color:var(--ink-2); margin-bottom:4px;}
+input,select{
+  font:inherit; font-size:14px; width:100%;
+  padding:8px 10px; border:1px solid var(--baseline);
+  border-radius:8px; background:var(--page); color:var(--ink);
+}
+input[type=range]{padding:0; border:none; background:none; accent-color:var(--s1);}
+input:focus,select:focus{outline:2px solid var(--s1); outline-offset:-1px; border-color:var(--s1);}
+.btn{
+  font:inherit; font-size:14px; font-weight:600;
+  background:var(--s1); color:#fff; border:none;
+  border-radius:8px; padding:9px 18px; cursor:pointer;
+}
+.btn:hover{filter:brightness(1.08);}
+.btn.ghost{background:none; color:var(--ink-2); border:1px solid var(--baseline);}
+.btn.ghost:hover{color:var(--ink); filter:none;}
+.btn.danger{background:var(--crit);}
+.btn.sm{font-size:12.5px; padding:6px 12px;}
+.del{background:none; border:none; cursor:pointer; color:var(--muted); font-size:15px; padding:2px 6px; border-radius:6px;}
+.del:hover{color:var(--crit); background:rgba(208,59,59,.08);}
+.empty{color:var(--muted); font-size:13.5px; padding:18px 0; text-align:center;}
+.member-badge{
+  font-size:11px; font-weight:700; border-radius:99px; padding:2px 9px;
+  border:1px solid var(--border); color:var(--ink-2); white-space:nowrap;
+}
+.note{font-size:12.5px; color:var(--muted);}
+
+.calc-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;}
+@media (max-width:860px){ .calc-grid{grid-template-columns:1fr;} }
+.calc-grid .fields{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.result-row{display:flex; justify-content:space-between; align-items:baseline; padding:9px 0; border-bottom:1px solid var(--grid); font-size:14px;}
+.result-row:last-child{border-bottom:none;}
+.result-row b{font-size:15px; font-variant-numeric:tabular-nums;}
+.verdict{
+  border-radius:10px; padding:14px 16px; margin-bottom:14px;
+  display:flex; align-items:center; gap:10px; font-weight:700; font-size:15px;
+  border:1px solid var(--border);
+}
+.verdict .pct{margin-left:auto; font-size:22px; font-variant-numeric:tabular-nums;}
+.verdict.ok{background:rgba(12,163,12,.10); color:var(--good-text);}
+.verdict.stretch{background:rgba(250,178,25,.14); color:var(--ink);}
+.verdict.risk{background:rgba(208,59,59,.10); color:var(--crit);}
+
+.goal-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px;}
+.goal{background:var(--surface-1); border:1px solid var(--border); border-radius:10px; padding:16px;}
+.goal .g-head{display:flex; align-items:baseline; gap:8px; margin-bottom:2px;}
+.goal .g-head h3{font-size:15px; font-weight:700; flex:1;}
+.goal .g-target{font-size:12.5px; color:var(--ink-2); margin-bottom:10px;}
+.pbar{height:10px; border-radius:99px; background:var(--grid); overflow:hidden; margin:8px 0 6px;}
+.pbar > div{height:100%; border-radius:99px; background:var(--s1); min-width:2px;}
+.pbar.done > div{background:var(--good);}
+.g-stats{display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-2);}
+.g-status{font-size:12px; font-weight:700; margin-top:8px; display:flex; align-items:center; gap:6px;}
+.g-status.ok{color:var(--good-text);}
+.g-status.behind{color:var(--crit);}
+.g-status.neutral{color:var(--ink-2);}
+.g-foot{display:flex; justify-content:space-between; align-items:center; margin-top:10px;}
+
+.budget-bar{height:8px; border-radius:99px; background:var(--grid); overflow:hidden; min-width:90px;}
+.budget-bar > div{height:100%; border-radius:99px;}
+.b-in{background:var(--s1);}
+.b-over{background:var(--crit);}
+input.mini{width:110px; padding:5px 8px; font-size:13px; text-align:right;}
+
+.cred-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin-top:14px;}
+.cred{background:var(--page); border:1px solid var(--border); border-radius:10px; padding:14px 16px;}
+.cred h3{font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-2); margin-bottom:8px;}
+.cred .big{font-size:23px; font-weight:700; margin:2px 0 8px;}
+.cred .rrow{display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-2); padding:3px 0;}
+.cred .rrow b{color:var(--ink); font-variant-numeric:tabular-nums;}
+
+/* istaknuta kartica za unos — menja boju prema tipu */
+.card.entry{border-width:2px; transition:background .25s, border-color .25s;}
+.card.entry.rashod{background:rgba(227,73,72,.06); border-color:rgba(227,73,72,.40);}
+.card.entry.prihod{background:rgba(12,163,12,.06); border-color:rgba(12,163,12,.40);}
+.card.entry.rashod .btn[type=submit]{background:var(--crit);}
+.card.entry.prihod .btn[type=submit]{background:var(--good);}
+.card.entry input,.card.entry select{background:var(--surface-1);}
+.seg{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
+.seg button{
+  flex:1; min-width:140px; font:inherit; font-weight:700; font-size:14px;
+  padding:11px 14px; border-radius:10px; border:1.5px solid var(--baseline);
+  background:var(--surface-1); color:var(--ink-2); cursor:pointer;
+}
+.seg button:hover{color:var(--ink);}
+.seg button.active[data-t="rashod"]{background:var(--crit); border-color:var(--crit); color:#fff;}
+.seg button.active[data-t="prihod"]{background:var(--good); border-color:var(--good); color:#fff;}
+.seg button.active[data-l]{background:var(--s1); border-color:var(--s1); color:#fff;}
+.chips{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;}
+.chip{
+  font:inherit; font-size:12px; font-weight:600;
+  border:1px solid var(--border); background:var(--surface-1);
+  border-radius:99px; padding:5px 11px; cursor:pointer; color:var(--ink-2);
+}
+.chip:hover{color:var(--ink); border-color:var(--baseline);}
+.badges{display:flex; gap:8px; flex-wrap:wrap; margin:-6px 0 20px;}
+.badge{
+  font-size:12.5px; font-weight:700; border-radius:99px; padding:6px 12px;
+  border:1px solid var(--border); background:var(--surface-1); color:var(--ink-2);
+}
+.badge.win{border-color:rgba(12,163,12,.45); color:var(--good-text); background:rgba(12,163,12,.08);}
+.rules{list-style:none; display:grid; gap:8px; font-size:13.5px; color:var(--ink-2);}
+.rules li{padding-left:4px;}
+.rules b{color:var(--ink);}
+
+.settings-row{display:flex; gap:10px; flex-wrap:wrap; align-items:end; margin-bottom:14px;}
+.settings-row > div{min-width:150px;}
+.proj-controls{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-bottom:16px;}
+.proj-controls .pc{background:var(--page); border:1px solid var(--border); border-radius:10px; padding:12px 14px;}
+.proj-controls .pc .val{font-weight:700; font-size:15px; font-variant-numeric:tabular-nums;}
+.callout{
+  border-left:3px solid var(--s1); background:var(--page);
+  border-radius:0 8px 8px 0; padding:10px 14px; font-size:13.5px; color:var(--ink-2);
+  margin-top:14px;
+}
+.callout b{color:var(--ink);}
+
+/* ===== mobilni (Android/iOS) ===== */
+@media (max-width:900px){
+  #goalForm, #assetForm{grid-template-columns:1fr 1fr !important;}
+}
+@media (max-width:640px){
+  header{padding:14px 14px 0;}
+  header h1{font-size:19px;}
+  nav{padding:0 8px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+  nav::-webkit-scrollbar{display:none;}
+  nav button{padding:10px 9px; font-size:12.5px; white-space:nowrap;}
+  .filterbar{padding:10px 14px 0;}
+  main{padding:14px 12px 60px;}
+  .card{padding:14px;}
+  .tiles{grid-template-columns:1fr 1fr; gap:8px;}
+  .tile .value{font-size:19px;}
+  .calc-grid .fields{grid-template-columns:1fr;}
+  /* 16px sprečava iOS auto-zoom pri fokusu polja */
+  input,select{font-size:16px;}
+  .btn{padding:11px 18px; width:100%;}
+  .seg button{min-width:110px; padding:12px 10px;}
+  input.mini{width:86px;}
+}
+@media (max-width:560px){
+  #goalForm, #assetForm, form.tx{grid-template-columns:1fr !important;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💰 Moje finansije</h1>
+  <p>Porodični budžet, ciljevi, imovina i krediti — podaci se čuvaju lokalno u tvom browseru.</p>
+</header>
+
+<nav>
+  <button data-view="dash" class="active">📊 Pregled</button>
+  <button data-view="month">📅 Mesečno</button>
+  <button data-view="goals">🎯 Ciljevi</button>
+  <button data-view="proj">📈 Projekcija</button>
+  <button data-view="assets">💎 Imovina</button>
+  <button data-view="credit">🏦 Krediti</button>
+  <button data-view="car">🚗 Auto</button>
+  <button data-view="data">⚙️ Podaci</button>
+</nav>
+
+<div class="filterbar" id="memberFilter">
+  <span class="flabel">Prikaz:</span>
+</div>
+
+<main>
+
+<!-- ===================== PREGLED ===================== -->
+<section class="view active" id="view-dash">
+  <div class="tiles" id="dashTiles"></div>
+  <div class="badges" id="dashBadges"></div>
+
+  <div class="card">
+    <h2>Po članu porodice — <span class="yearLbl"></span>.</h2>
+    <div class="desc">Posebno za svakog + zajedničko, i automatski ukupan zbir (ne zavisi od filtera gore)</div>
+    <div class="table-scroll" id="memberTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>Prihodi i rashodi po mesecima</h2>
+    <div class="desc">Uporedni pregled za <span class="yearLbl"></span>. godinu</div>
+    <div class="legend">
+      <span><i style="background:var(--s1)"></i>Prihodi</span>
+      <span><i style="background:var(--s6)"></i>Rashodi</span>
+    </div>
+    <div class="chart-wrap" id="chartIncExp"></div>
+  </div>
+
+  <div class="card">
+    <h2>Rashodi po kategorijama</h2>
+    <div class="desc">Ukupno za celu godinu</div>
+    <div class="chart-wrap" id="chartCats"></div>
+  </div>
+
+  <div class="card">
+    <h2>Kumulativni bilans</h2>
+    <div class="desc">Zbir (prihodi − rashodi) tokom godine</div>
+    <div class="chart-wrap" id="chartBalance"></div>
+  </div>
+
+  <div class="card">
+    <h2>Godišnja tabela</h2>
+    <div class="desc">Kategorije po mesecima — automatski se ažurira sa svakim unosom</div>
+    <div class="table-scroll" id="annualTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>📆 Poređenje godina i inflacija</h2>
+    <div class="desc">
+      Sve godine koje si vodio, jedna pored druge — nominalno i <b>realno</b> (preračunato u današnje cene preko inflacije).
+      Tako vidiš da li stvarno napreduješ ili samo brojke rastu sa cenama.
+    </div>
+    <div id="yearsCompare"></div>
+  </div>
+
+  <div class="card">
+    <h2>📚 Zlatna pravila kućnog budžeta</h2>
+    <div class="desc">Opšteprihvaćene smernice — koristi ih uz dugme „Predloži plan" u Mesečnom tabu</div>
+    <ul class="rules">
+      <li>📐 <b>50 / 30 / 20:</b> 50% prihoda za potrebe (stan, računi, hrana), 30% za želje, <b>bar 20% za štednju</b>.</li>
+      <li>🏠 <b>Stanovanje ≤ 30%:</b> kirija ili rata + režije zajedno ne bi trebalo da pređu 30% neto prihoda.</li>
+      <li>🚗 <b>Auto ≤ 15%:</b> rata + gorivo + registracija + održavanje (proveri u tabu 🚗 Auto).</li>
+      <li>🏦 <b>Krediti 28/36:</b> rata stambenog ≤ 28% prihoda, a <b>sve rate zajedno ≤ 36%</b>.</li>
+      <li>👕 <b>Garderoba i luksuz ≤ 5%:</b> satove, nakit i zlato kupuj planski — preko cilja u 🎯, ne iz tekućeg budžeta.</li>
+      <li>🛟 <b>Hitna rezerva:</b> 3–6 mesečnih troškova na strani pre bilo kakvog investiranja.</li>
+      <li>💸 <b>„Prvo plati sebe":</b> štednju izdvoji čim legne plata, ne od onoga što ostane na kraju meseca.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== MESEČNO ===================== -->
+<section class="view" id="view-month">
+  <div class="months" id="monthBtns"></div>
+
+  <div class="card entry rashod" id="txCard">
+    <h2 id="txFormTitle">➖ Novi trošak</h2>
+    <div class="desc">Pregled i grafikoni se odmah ažuriraju</div>
+    <div class="seg" id="typeSeg">
+      <button type="button" data-t="rashod" class="active">➖ Trošak / rashod</button>
+      <button type="button" data-t="prihod">➕ Prihod (plata, honorar…)</button>
+    </div>
+    <div class="chips" id="quickChips"></div>
+    <div id="scanBox" style="margin-bottom:12px">
+      <div class="chips" style="margin-bottom:8px">
+        <button type="button" class="chip" id="btnScanCam">📷 Skeniraj QR sa fiskalnog računa</button>
+        <button type="button" class="chip" id="btnScanImg">🖼️ QR iz slike</button>
+        <button type="button" class="chip" id="btnScanLink">🔗 Nalepi link računa</button>
+      </div>
+      <input type="file" id="scanImgFile" accept="image/*" style="display:none">
+      <div id="scanPanel"></div>
+    </div>
+    <form class="grid tx" id="txForm">
+      <select id="txType" style="display:none">
+        <option value="rashod" selected>Rashod</option>
+        <option value="prihod">Prihod</option>
+      </select>
+      <div>
+        <label for="txDate">Datum</label>
+        <input type="date" id="txDate" required>
+      </div>
+      <div>
+        <label for="txCat">Kategorija</label>
+        <select id="txCat"></select>
+      </div>
+      <div>
+        <label for="txMember">Čije</label>
+        <select id="txMember"></select>
+      </div>
+      <div>
+        <label for="txNote">Opis (opciono)</label>
+        <input type="text" id="txNote" placeholder="npr. račun za struju">
+      </div>
+      <div>
+        <label for="txAmount">Iznos</label>
+        <input type="number" id="txAmount" min="0" step="0.01" required placeholder="0">
+      </div>
+      <button class="btn" type="submit">Dodaj</button>
+    </form>
+    <div id="goalPickWrap" style="margin-top:10px; display:none; max-width:340px;">
+      <label for="txGoal">Uplata za cilj (opciono)</label>
+      <select id="txGoal"></select>
+    </div>
+  </div>
+
+  <div class="tiles" id="monthTiles"></div>
+
+  <div class="card">
+    <h2>Pametni budžet — <span id="budgetLbl"></span></h2>
+    <div class="desc">
+      Aplikacija sama računa tvoj prosek iz prethodnih meseci i poredi sa tekućom potrošnjom (cela porodica).
+      Plan je opcioni — upiši svoj ili <button type="button" class="btn ghost sm" id="btnSuggestBudget">🪄 Predloži plan (50/30/20)</button>
+    </div>
+    <div class="table-scroll" id="budgetTable"></div>
+    <div id="budgetPraise"></div>
+  </div>
+
+  <div class="card">
+    <h2>Rashodi po kategorijama — <span id="monthCatLbl"></span></h2>
+    <div class="desc">Samo izabrani mesec</div>
+    <div class="chart-wrap" id="chartMonthCats"></div>
+  </div>
+
+  <div class="card">
+    <h2>Transakcije — <span id="monthTxLbl"></span></h2>
+    <div class="table-scroll" id="txTable"></div>
+  </div>
+</section>
+
+<!-- ===================== CILJEVI ===================== -->
+<section class="view" id="view-goals">
+  <div class="card">
+    <h2>Novi cilj štednje</h2>
+    <div class="desc">Bilo šta sa ciljnim iznosom i rokom — klikni predlog ili upiši svoje. Uplate ka cilju unosiš kao transakciju kategorije „Štednja" i izabereš cilj.</div>
+    <div class="chips" id="goalChips"></div>
+    <form class="grid" id="goalForm" style="grid-template-columns:1.4fr 1fr 130px 130px 130px auto;">
+      <div>
+        <label for="gName">Naziv</label>
+        <input type="text" id="gName" required placeholder="npr. Letovanje 2027 ✈️">
+      </div>
+      <div>
+        <label for="gMember">Čiji cilj</label>
+        <select id="gMember"></select>
+      </div>
+      <div>
+        <label for="gTarget">Ciljni iznos</label>
+        <input type="number" id="gTarget" min="1" step="1" required placeholder="0">
+      </div>
+      <div>
+        <label for="gStart">Već ušteđeno</label>
+        <input type="number" id="gStart" min="0" step="1" value="0">
+      </div>
+      <div>
+        <label for="gDeadline">Rok</label>
+        <input type="month" id="gDeadline" required>
+      </div>
+      <button class="btn" type="submit">Dodaj cilj</button>
+    </form>
+  </div>
+  <div class="goal-grid" id="goalGrid"></div>
+  <div class="empty" id="goalsEmpty" style="display:none">Još nema ciljeva — dodaj prvi iznad. 🎯</div>
+</section>
+
+<!-- ===================== PROJEKCIJA ===================== -->
+<section class="view" id="view-proj">
+  <div class="card">
+    <h2>Projekcija narednih 12 meseci</h2>
+    <div class="desc">
+      Na osnovu tvog proseka (<span id="projBasis"></span>) projektujemo koliko ćeš uštedeti.
+      Pomeri kontrole i vidi „šta ako" — npr. šta ako ovog meseca potrošiš više, ili trajno smanjiš/povećaš potrošnju.
+    </div>
+    <div class="proj-controls">
+      <div class="pc">
+        <label for="pOnce">Vanredni trošak sledećeg meseca</label>
+        <input type="number" id="pOnce" min="0" step="1000" value="0">
+        <div class="note" style="margin-top:4px">npr. kvar na kolima, veća kupovina</div>
+      </div>
+      <div class="pc">
+        <label for="pPct">Trajna promena mesečne potrošnje: <span class="val" id="pPctVal">0%</span></label>
+        <input type="range" id="pPct" min="-30" max="30" step="1" value="0">
+        <div class="note" style="margin-top:4px">− štedljivije / + rastrošnije</div>
+      </div>
+      <div class="pc">
+        <label for="pExtra">Dodatni mesečni prihod</label>
+        <input type="number" id="pExtra" min="0" step="1000" value="0">
+        <div class="note" style="margin-top:4px">npr. honorar, povišica</div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--s1)"></i>Osnovni scenario</span>
+      <span><i style="background:var(--s5)"></i>Sa izmenama</span>
+    </div>
+    <div class="chart-wrap" id="chartProj"></div>
+    <div class="callout" id="projSummary"></div>
+  </div>
+
+  <div class="card">
+    <h2>Uticaj na ciljeve</h2>
+    <div class="desc">Koliko mesečno treba za sve aktivne ciljeve i da li tvoj projektovani mesečni višak to pokriva</div>
+    <div class="table-scroll" id="projGoals"></div>
+  </div>
+</section>
+
+<!-- ===================== IMOVINA ===================== -->
+<section class="view" id="view-assets">
+  <div class="card">
+    <h2>Nova stavka imovine</h2>
+    <div class="desc">Investiciono zlato, nakit, satovi, devizna štednja, fondovi… Vrednost ažuriraš ručno kad god želiš — aplikacija pamti istoriju i crta rast. (Aplikacija ne daje investicione preporuke.)</div>
+    <form class="grid" id="assetForm" style="grid-template-columns:1.4fr 1fr 1fr 140px 150px auto;">
+      <div>
+        <label for="aName">Naziv</label>
+        <input type="text" id="aName" required placeholder="npr. Zlatna poluga 20g">
+      </div>
+      <div>
+        <label for="aType">Vrsta</label>
+        <select id="aType">
+          <option>Gotovina i tekući računi</option>
+          <option>Devizna štednja</option>
+          <option>Nekretnina</option>
+          <option>Vozilo</option>
+          <option>Investiciono zlato</option>
+          <option>Nakit</option>
+          <option>Satovi</option>
+          <option>Umetnine i kolekcije</option>
+          <option>Fondovi / akcije</option>
+          <option>Kripto valute</option>
+          <option>Penzijski / investicioni fond</option>
+          <option>Poslovni udeo</option>
+          <option>Ostalo</option>
+        </select>
+      </div>
+      <div>
+        <label for="aMember">Vlasnik</label>
+        <select id="aMember"></select>
+      </div>
+      <div>
+        <label for="aValue">Trenutna vrednost</label>
+        <input type="number" id="aValue" min="0" step="1" required placeholder="0">
+      </div>
+      <div>
+        <label for="aDate">Datum procene</label>
+        <input type="date" id="aDate" required>
+      </div>
+      <button class="btn" type="submit">Dodaj</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Nova obaveza — kredit ili dug</h2>
+    <div class="desc">Druga polovina formule: neto vrednost = imovina − obaveze. Upiši preostali dug po svakom kreditu, minusu ili kartici — i ažuriraj ga kako otplaćuješ.</div>
+    <form class="grid" id="debtForm" style="grid-template-columns:1.3fr 1fr 1fr 140px 130px 150px auto;">
+      <div>
+        <label for="dName">Naziv</label>
+        <input type="text" id="dName" required placeholder="npr. Stambeni kredit — banka">
+      </div>
+      <div>
+        <label for="dType">Vrsta</label>
+        <select id="dType">
+          <option>Stambeni kredit</option>
+          <option>Keš kredit</option>
+          <option>Potrošački kredit</option>
+          <option>Auto kredit / lizing</option>
+          <option>Kreditna kartica</option>
+          <option>Dozvoljeni minus</option>
+          <option>Pozajmica</option>
+          <option>Ostalo</option>
+        </select>
+      </div>
+      <div>
+        <label for="dMember">Čija obaveza</label>
+        <select id="dMember"></select>
+      </div>
+      <div>
+        <label for="dValue">Preostali dug</label>
+        <input type="number" id="dValue" min="0" step="1" required placeholder="0">
+      </div>
+      <div>
+        <label for="dRate">Mesečna rata</label>
+        <input type="number" id="dRate" min="0" step="1" placeholder="opciono">
+      </div>
+      <div>
+        <label for="dDate">Datum stanja</label>
+        <input type="date" id="dDate" required>
+      </div>
+      <button class="btn" type="submit">Dodaj</button>
+    </form>
+  </div>
+
+  <div class="tiles" id="assetTiles"></div>
+
+  <div class="card">
+    <h2>Neto vrednost kroz vreme</h2>
+    <div class="desc">Imovina, obaveze i njihova razlika (neto), mesec po mesec</div>
+    <div class="legend">
+      <span><i style="background:var(--s2)"></i>Imovina</span>
+      <span><i style="background:var(--s6)"></i>Obaveze</span>
+      <span><i style="background:var(--s1)"></i>Neto vrednost</span>
+    </div>
+    <div class="chart-wrap" id="chartAssets"></div>
+  </div>
+
+  <div class="card">
+    <h2>Imovina — stavke</h2>
+    <div class="desc">Klikni „Ažuriraj" da upišeš novu procenu vrednosti (npr. nova cena zlata)</div>
+    <div class="table-scroll" id="assetTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>Obaveze — krediti i dugovi</h2>
+    <div class="desc">Klikni „Ažuriraj" da upišeš novo (manje) stanje duga posle otplate</div>
+    <div class="table-scroll" id="debtTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>ℹ️ Kako se računa neto vrednost (net worth)</h2>
+    <ul class="rules">
+      <li>🧮 <b>Neto vrednost = imovina − obaveze.</b> To je standardna formula, bez izuzetaka.</li>
+      <li>✅ <b>Računa se:</b> nekretnine, vozila, gotovina i tekući računi, devizna štednja, zlato, akcije/fondovi, penzijski fondovi, kripto, poslovni udeli — i <b>vrednije luksuzne stvari od ranije</b> (satovi, nakit, umetnine, kolekcije) po <b>realnoj prodajnoj ceni</b>, ne po ceni kupovine.</li>
+      <li>❌ <b>Ne računa se:</b> obična garderoba i stvari za ličnu upotrebu koje nemaju ozbiljnu preprodajnu vrednost.</li>
+      <li>📉 <b>Obaveze:</b> preostali dug svih kredita (ne cela pozajmljena suma), minusi, kartice, pozajmice od porodice/prijatelja.</li>
+      <li>🔄 <b>Osvežavanje:</b> procene imovine i stanje dugova ažurirajte bar na 3–6 meseci da grafikon pokazuje pravu sliku.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===================== KREDITI ===================== -->
+<section class="view" id="view-credit">
+  <div class="card">
+    <h2>Kreditna sposobnost domaćinstva</h2>
+    <div class="desc">
+      Procena kolika rata i koliki kredit su realni — posebno za svakog i zajedno.
+      Pravila: <b>28/36</b> — rata stambenog ≤ 28% neto prihoda, sve rate zajedno ≤ 36%
+      (limit ispod je podrazumevano 36%, prilagodi po želji). U Srbiji je stambeni kredit
+      <b>maksimalno 30 godina</b>. <b>Ovo je informativna procena, banke računaju po svojim pravilima.</b>
+    </div>
+    <div class="seg" id="loanSeg">
+      <button type="button" data-l="stambeni">🏠 Stambeni</button>
+      <button type="button" data-l="potrosacki">🛋️ Potrošački</button>
+      <button type="button" data-l="kes">💵 Keš</button>
+    </div>
+    <p class="note" style="margin-bottom:14px" id="loanNote"></p>
+    <div class="calc-grid">
+      <div class="fields">
+        <div>
+          <label for="crIncM" id="crIncMLbl">Neto prihod — muž (mesečno)</label>
+          <input type="number" id="crIncM" min="0" step="50">
+        </div>
+        <div>
+          <label for="crIncZ" id="crIncZLbl">Neto prihod — žena (mesečno)</label>
+          <input type="number" id="crIncZ" min="0" step="50">
+        </div>
+        <div>
+          <label for="crOblig">Postojeće mesečne rate/obaveze</label>
+          <input type="number" id="crOblig" min="0" step="10" value="0">
+        </div>
+        <div>
+          <label for="crDti">Maks. opterećenje prihoda (%)</label>
+          <input type="number" id="crDti" min="10" max="60" step="1" value="36">
+        </div>
+        <div>
+          <label for="crApr">Kamatna stopa — godišnja (%)</label>
+          <input type="number" id="crApr" min="0" step="0.1" value="5.5">
+        </div>
+        <div>
+          <label for="crYears">Rok otplate (godina) — stambeni maks. 30</label>
+          <input type="number" id="crYears" min="1" max="30" step="1" value="30">
+        </div>
+        <div>
+          <label for="crDown">Raspoloživo učešće / keš</label>
+          <input type="number" id="crDown" min="0" step="100" value="0">
+        </div>
+      </div>
+      <div>
+        <div class="note" style="margin-bottom:6px">Maksimalni iznosi po scenariju:</div>
+        <div class="cred-grid" id="credResults" style="grid-template-columns:1fr;"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== AUTO ===================== -->
+<section class="view" id="view-car">
+  <div class="card">
+    <h2>Kalkulator priuštivosti automobila</h2>
+    <div class="desc">Unesi podatke o vozilu i kreditu — odmah vidiš mesečnu ratu, ukupan trošak i da li kupovina staje u tvoj budžet (pravilo: ukupan mesečni trošak auta ≤ 15% prihoda).</div>
+    <div class="calc-grid">
+      <div class="fields">
+        <div>
+          <label for="cPrice">Cena vozila</label>
+          <input type="number" id="cPrice" min="0" step="100" value="15000">
+        </div>
+        <div>
+          <label for="cDown">Učešće</label>
+          <input type="number" id="cDown" min="0" step="100" value="3000">
+        </div>
+        <div>
+          <label for="cApr">Kamatna stopa — godišnja (%)</label>
+          <input type="number" id="cApr" min="0" step="0.1" value="7.5">
+        </div>
+        <div>
+          <label for="cTerm">Rok otplate (meseci)</label>
+          <input type="number" id="cTerm" min="1" step="1" value="60">
+        </div>
+        <div>
+          <label for="cIns">Osiguranje + registracija (mesečno)</label>
+          <input type="number" id="cIns" min="0" step="10" value="60">
+        </div>
+        <div>
+          <label for="cFuel">Gorivo (mesečno)</label>
+          <input type="number" id="cFuel" min="0" step="10" value="120">
+        </div>
+        <div>
+          <label for="cMaint">Održavanje (mesečno)</label>
+          <input type="number" id="cMaint" min="0" step="10" value="50">
+        </div>
+        <div>
+          <label for="cIncome">Mesečni prihod domaćinstva (neto)</label>
+          <input type="number" id="cIncome" min="0" step="50" value="2000">
+        </div>
+      </div>
+      <div>
+        <div id="carVerdict"></div>
+        <div id="carResults"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PODACI ===================== -->
+<section class="view" id="view-data">
+  <div class="card">
+    <h2>Podešavanja</h2>
+    <div class="desc">Valuta, godina i imena članova</div>
+    <div class="settings-row">
+      <div>
+        <label for="setCurrency">Valuta</label>
+        <select id="setCurrency">
+          <option value="RSD">RSD — dinar</option>
+          <option value="EUR">EUR — evro</option>
+          <option value="USD">USD — dolar</option>
+        </select>
+      </div>
+      <div>
+        <label for="setYear">Godina</label>
+        <select id="setYear"></select>
+      </div>
+      <div>
+        <label for="setNameM">Ime — muž</label>
+        <input type="text" id="setNameM" maxlength="14">
+      </div>
+      <div>
+        <label for="setNameZ">Ime — žena</label>
+        <input type="text" id="setNameZ" maxlength="14">
+      </div>
+      <div>
+        <label for="setDevice">Ko unosi na OVOM uređaju</label>
+        <select id="setDevice">
+          <option value="">— nije podešeno —</option>
+          <option value="muz">Muž</option>
+          <option value="zena">Žena</option>
+        </select>
+      </div>
+    </div>
+    <p class="note">Transakcije svih godina ostaju sačuvane — promena godine samo menja koji se podaci prikazuju.
+    Kad podesiš „ko unosi na ovom uređaju", svaka transakcija pamti ko ju je uneo — pa se posle spajanja podataka vidi čiji je koji unos.</p>
+  </div>
+
+  <div class="card">
+    <h2>🏷️ Kategorije</h2>
+    <div class="desc">
+      Osnovne kategorije su ugrađene, a ovde dodaj svoje — npr. „Deca", „Kućni ljubimci", „Teretana", „Pokloni".
+      Nova kategorija se odmah pojavljuje svuda: pri unosu, u budžetu, grafikonima i godišnjoj tabeli.
+    </div>
+    <form class="grid" id="catForm" style="grid-template-columns:1.5fr 160px auto; max-width:560px;">
+      <div>
+        <label for="catName">Naziv kategorije</label>
+        <input type="text" id="catName" required maxlength="24" placeholder="npr. Deca 🧸">
+      </div>
+      <div>
+        <label for="catType">Tip</label>
+        <select id="catType">
+          <option value="rashod">Rashod</option>
+          <option value="prihod">Prihod</option>
+        </select>
+      </div>
+      <button class="btn" type="submit">Dodaj</button>
+    </form>
+    <div class="chips" id="catList" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>📥 Uvoz izvoda iz banke (CSV)</h2>
+    <div class="desc">
+      Izvezi promet iz e-bankinga kao CSV i ubaci ga ovde — aplikacija sama prepozna kolone (datum, opis, iznos),
+      pogodi kategorije po nazivu trgovca (Maxi → Potrošnja, EPS → Računi, NIS → Vozilo…), a ti pregledaš,
+      ispraviš šta treba i potvrdiš. Duplikati se automatski preskaču, pa isti fajl možeš uvesti dva puta bez straha.
+    </div>
+    <div class="settings-row">
+      <button class="btn" id="btnCsv">📄 Izaberi CSV fajl</button>
+      <input type="file" id="csvFile" accept=".csv,.txt" style="display:none">
+      <div>
+        <label for="csvMember">Vlasnik uvezenih transakcija</label>
+        <select id="csvMember"></select>
+      </div>
+    </div>
+    <div id="csvWizard"></div>
+  </div>
+
+  <div class="card">
+    <h2>Rezervna kopija</h2>
+    <div class="desc">
+      Podaci žive u localStorage ovog browsera. Povremeno napravi rezervu — njome preneseš sve i na drugi uređaj.
+      <b>„Uvezi i spoji"</b> je za tebe i ženu: svako izveze svoj fajl, spojite ih na jednom uređaju — bez duplikata, uz oznaku ko je šta uneo.
+    </div>
+    <div class="settings-row">
+      <button class="btn" id="btnExport">⬇️ Izvezi podatke (JSON)</button>
+      <button class="btn ghost" id="btnMerge">🔀 Uvezi i spoji</button>
+      <button class="btn ghost" id="btnImport">⬆️ Uvezi (zameni sve)</button>
+      <input type="file" id="importFile" accept=".json" style="display:none">
+      <input type="file" id="mergeFile" accept=".json" style="display:none">
+      <button class="btn danger" id="btnWipe">🗑️ Obriši sve podatke</button>
+    </div>
+    <p class="note" id="dataStats"></p>
+  </div>
+</section>
+
+</main>
+
+<div id="camModal" style="position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; z-index:50; align-items:center; justify-content:center; flex-direction:column; gap:14px; padding:16px">
+  <video id="camVideo" autoplay playsinline muted style="max-width:92vw; max-height:70vh; border-radius:12px; background:#000"></video>
+  <div style="color:#fff; font-size:14px; font-weight:600">Uperi kameru u QR kod na dnu fiskalnog računa</div>
+  <button class="btn danger" id="btnCamStop" type="button">Zatvori</button>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+"use strict";
+/* ============ Model ============ */
+const MONTHS = ["Januar","Februar","Mart","April","Maj","Jun","Jul","Avgust","Septembar","Oktobar","Novembar","Decembar"];
+const MONTHS_S = ["Jan","Feb","Mar","Apr","Maj","Jun","Jul","Avg","Sep","Okt","Nov","Dec"];
+const BASE_EXP_CATS = [
+  {id:"stednja",   name:"Štednja",          color:"var(--s1)"},
+  {id:"vozilo",    name:"Vozilo",           color:"var(--s2)"},
+  {id:"dom",       name:"Dom i stanovanje", color:"var(--s3)"},
+  {id:"racuni",    name:"Računi",           color:"var(--s4)"},
+  {id:"potrosnja", name:"Potrošnja",        color:"var(--s5)"},
+  {id:"pretplate", name:"Pretplate",        color:"var(--s6)"},
+  {id:"dugovi",    name:"Dugovi",           color:"var(--s7)"},
+  {id:"garderoba", name:"Garderoba i luksuz", color:"var(--s8)"},
+];
+const BASE_INC_CATS = [
+  {id:"plata",   name:"Plata",          color:"var(--s1)"},
+  {id:"honorar", name:"Honorar",        color:"var(--s2)"},
+  {id:"ostalo",  name:"Ostali prihodi", color:"var(--s3)"},
+];
+/* korisničke kategorije se dodaju na osnovne — liste se grade dinamički */
+let EXP_CATS = [], INC_CATS = [];
+function rebuildCats(){
+  const custom = state && state.customCats ? state.customCats : [];
+  EXP_CATS = BASE_EXP_CATS.concat(custom.filter(c=>c.type==="rashod"));
+  INC_CATS = BASE_INC_CATS.concat(custom.filter(c=>c.type==="prihod"));
+}
+const catById = id => EXP_CATS.concat(INC_CATS).find(c=>c.id===id) || {name:id, color:"var(--muted)"};
+const MEMBERS = ["muz","zena","zajedno"];
+
+const STORE_KEY = "mojeFinansije.v1";
+/* profil uređaja — čuva se ODVOJENO od podataka, pa ga uvoz/spajanje ne dira */
+const DEVICE_KEY = "mojeFinansije.device";
+let device = localStorage.getItem(DEVICE_KEY) || "";
+let state = load();
+function load(){
+  let s = null;
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){ const p = JSON.parse(raw); if(p && Array.isArray(p.tx)) s = p; }
+  }catch(e){}
+  if(!s) s = { currency:"RSD", year:(new Date()).getFullYear(), tx:[], selMonth:(new Date()).getMonth(), car:null };
+  /* migracija na v2 */
+  if(!s.names) s.names = {muz:"Muž", zena:"Žena"};
+  if(!s.filter) s.filter = "svi";
+  if(!Array.isArray(s.goals)) s.goals = [];
+  if(!Array.isArray(s.assets)) s.assets = [];
+  if(!Array.isArray(s.debts)) s.debts = [];
+  if(!Array.isArray(s.customCats)) s.customCats = [];
+  if(!s.inflation) s.inflation = {};
+  if(!s.budgets) s.budgets = {};
+  if(!s.credit) s.credit = null;
+  if(!s.proj) s.proj = {once:0, pct:0, extra:0};
+  s.tx.forEach(t=>{ if(!t.member) t.member = "zajedno"; });
+  return s;
+}
+function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+const fmt  = v => new Intl.NumberFormat("sr-RS",{style:"currency",currency:state.currency,maximumFractionDigits:0}).format(v);
+const fmtN = v => new Intl.NumberFormat("sr-RS",{maximumFractionDigits:0}).format(v);
+const memberName = id => id==="muz" ? state.names.muz : id==="zena" ? state.names.zena : "Zajedničko";
+const memberBadge = id => `<span class="member-badge">${id==="zajedno"?"🤝":"👤"} ${escapeHtml(memberName(id))}</span>`;
+
+function txOfYear(){ return state.tx.filter(t=>t.date.slice(0,4)==String(state.year)); }
+function monthOf(t){ return parseInt(t.date.slice(5,7),10)-1; }
+function passFilter(t){ return state.filter==="svi" || t.member===state.filter; }
+function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+const uid = () => Date.now()+"-"+Math.random().toString(36).slice(2,7);
+
+/* ============ Navigacija & filter ============ */
+document.querySelectorAll("nav button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x===b));
+    document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active", v.id==="view-"+b.dataset.view));
+  });
+});
+function renderFilterBar(){
+  const bar = document.getElementById("memberFilter");
+  bar.querySelectorAll("button").forEach(b=>b.remove());
+  [["svi","Cela porodica"],["muz","👤 "+state.names.muz],["zena","👤 "+state.names.zena],["zajedno","🤝 Zajedničko"]].forEach(([id,lbl])=>{
+    const b = document.createElement("button");
+    b.textContent = lbl;
+    b.classList.toggle("active", state.filter===id);
+    b.addEventListener("click",()=>{ state.filter=id; save(); renderAll(); });
+    bar.appendChild(b);
+  });
+}
+
+/* ============ Tooltip ============ */
+const tip = document.getElementById("tooltip");
+function showTip(html, evt){
+  tip.innerHTML = html; tip.style.display = "block";
+  const pad = 14;
+  let x = evt.clientX + pad, y = evt.clientY + pad;
+  const r = tip.getBoundingClientRect();
+  if(x + r.width > window.innerWidth - 8)  x = evt.clientX - r.width - pad;
+  if(y + r.height > window.innerHeight - 8) y = evt.clientY - r.height - pad;
+  tip.style.left = (x + window.scrollX) + "px";
+  tip.style.top  = (y + window.scrollY) + "px";
+}
+function hideTip(){ tip.style.display = "none"; }
+function attachTip(node, htmlFn){
+  node.addEventListener("mousemove", e=>showTip(htmlFn(), e));
+  node.addEventListener("mouseleave", hideTip);
+}
+
+/* ============ SVG pomoćnici ============ */
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function niceMax(v){
+  if(v<=0) return 100;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  for(const m of [1,1.5,2,2.5,3,4,5,6,8,10]) if(m*p>=v) return m*p;
+  return 10*p;
+}
+function roundTop(x,y,w,h,r){
+  if(h<=0) return "M0 0";
+  r = Math.min(r, w/2, h);
+  return `M${x} ${y+h} L${x} ${y+r} Q${x} ${y} ${x+r} ${y} L${x+w-r} ${y} Q${x+w} ${y} ${x+w} ${y+r} L${x+w} ${y+h} Z`;
+}
+function roundRight(x,y,w,h,r){
+  if(w<=0) return "M0 0";
+  r = Math.min(r, h/2, w);
+  return `M${x} ${y} L${x+w-r} ${y} Q${x+w} ${y} ${x+w} ${y+r} L${x+w} ${y+h-r} Q${x+w} ${y+h} ${x+w-r} ${y+h} L${x} ${y+h} Z`;
+}
+/* opšti linijski grafikon: series = [{name,color,vals}], labels = x oznake */
+function renderLines(containerId, labels, series, tipExtra){
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = "";
+  const n = labels.length;
+  const W=940, H=280, mL=76, mR=16, mT=14, mB=30;
+  const pw=W-mL-mR, ph=H-mT-mB;
+  const all = series.flatMap(s=>s.vals);
+  const lo = Math.min(0, ...all), hi = Math.max(...all, 1);
+  const maxV = niceMax(hi), minV = lo<0 ? -niceMax(-lo) : 0;
+  const yOf = v => mT + ph - ph*(v-minV)/(maxV-minV);
+  const xOf = i => mL + pw*i/Math.max(1,n-1);
+  const svg = el("svg",{viewBox:`0 0 ${W} ${H}`, role:"img"});
+  for(let i=0;i<=4;i++){
+    const v = minV + (maxV-minV)*i/4, y = yOf(v);
+    svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y,y2:y,stroke:Math.abs(v)<1e-9?"var(--baseline)":"var(--grid)","stroke-width":1}));
+    const t = el("text",{x:mL-8,y:y+4,"text-anchor":"end",fill:"var(--muted)","font-size":11});
+    t.textContent = fmtN(v); svg.appendChild(t);
+  }
+  const step = Math.ceil(n/14);
+  labels.forEach((lb,i)=>{
+    if(i%step) return;
+    const t = el("text",{x:xOf(i),y:H-10,"text-anchor":"middle",fill:"var(--muted)","font-size":11});
+    t.textContent = lb; svg.appendChild(t);
+  });
+  series.forEach(s=>{
+    const d = s.vals.map((v,i)=>(i===0?"M":"L")+xOf(i)+" "+yOf(v)).join(" ");
+    svg.appendChild(el("path",{d, fill:"none", stroke:s.color, "stroke-width":2, "stroke-linejoin":"round"}));
+  });
+  for(let i=0;i<n;i++){
+    series.forEach(s=>{
+      svg.appendChild(el("circle",{cx:xOf(i),cy:yOf(s.vals[i]),r:3.5,fill:s.color,stroke:"var(--surface-1)","stroke-width":2}));
+    });
+    const hit = el("rect",{x:xOf(i)-pw/Math.max(1,n-1)/2, y:mT, width:pw/Math.max(1,n-1), height:ph, fill:"transparent"});
+    attachTip(hit, ()=>`<div class="t-title">${labels[i]}</div>` +
+      series.map(s=>`<div class="t-row"><span><i style="background:${s.color}"></i>${s.name}</span><b>${fmt(s.vals[i])}</b></div>`).join("") +
+      (tipExtra ? tipExtra(i) : ""));
+    svg.appendChild(hit);
+  }
+  wrap.appendChild(svg);
+}
+
+/* ============ Pregled ============ */
+function renderIncExp(){
+  const wrap = document.getElementById("chartIncExp");
+  wrap.innerHTML = "";
+  const inc = Array(12).fill(0), exp = Array(12).fill(0);
+  txOfYear().filter(passFilter).forEach(t=>{ (t.type==="prihod"?inc:exp)[monthOf(t)] += t.amount; });
+  const W=940, H=300, mL=76, mR=10, mT=14, mB=30;
+  const pw = W-mL-mR, ph = H-mT-mB;
+  const maxV = niceMax(Math.max(...inc, ...exp, 1));
+  const svg = el("svg",{viewBox:`0 0 ${W} ${H}`, role:"img","aria-label":"Prihodi i rashodi po mesecima"});
+  for(let i=0;i<=4;i++){
+    const y = mT + ph - ph*i/4;
+    svg.appendChild(el("line",{x1:mL,x2:W-mR,y1:y,y2:y,stroke: i===0?"var(--baseline)":"var(--grid)","stroke-width":1}));
+    const t = el("text",{x:mL-8,y:y+4,"text-anchor":"end",fill:"var(--muted)","font-size":11});
+    t.textContent = fmtN(maxV*i/4); svg.appendChild(t);
+  }
+  const slot = pw/12, bw = Math.min(16,(slot-14)/2);
+  for(let m=0;m<12;m++){
+    const cx = mL + slot*m + slot/2;
+    [["Prihodi",inc[m],"var(--s1)",cx-bw-1],["Rashodi",exp[m],"var(--s6)",cx+1]].forEach(([name,v,color,x])=>{
+      const h = Math.max(v>0?2:0, ph*v/maxV);
+      const bar = el("path",{d:roundTop(x, mT+ph-h, bw, h, 4), fill:color});
+      attachTip(bar, ()=>`<div class="t-title">${MONTHS[m]}</div>
+        <div class="t-row"><span><i style="background:${color}"></i>${name}</span><b>${fmt(v)}</b></div>`);
+      svg.appendChild(bar);
+    });
+    const t = el("text",{x:cx,y:H-10,"text-anchor":"middle",fill:"var(--muted)","font-size":11});
+    t.textContent = MONTHS_S[m]; svg.appendChild(t);
+  }
+  wrap.appendChild(svg);
+}
+function renderCatBars(containerId, totals){
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = "";
+  const rows = EXP_CATS.map(c=>({...c, v: totals[c.id]||0}));
+  const maxV = niceMax(Math.max(...rows.map(r=>r.v),1));
+  const W=940, rowH=34, mL=150, mR=120, H=rows.length*rowH+10;
+  const pw = W-mL-mR;
+  const svg = el("svg",{viewBox:`0 0 ${W} ${H}`, role:"img"});
+  svg.appendChild(el("line",{x1:mL,x2:mL,y1:4,y2:H-4,stroke:"var(--baseline)","stroke-width":1}));
+  rows.forEach((r,i)=>{
+    const y = 5 + rowH*i + (rowH-16)/2;
+    const w = Math.max(r.v>0?2:0, pw*r.v/maxV);
+    const lbl = el("text",{x:mL-10,y:y+12,"text-anchor":"end",fill:"var(--ink-2)","font-size":12.5,"font-weight":600});
+    lbl.textContent = r.name; svg.appendChild(lbl);
+    const bar = el("path",{d:roundRight(mL, y, w, 16, 4), fill:r.color});
+    attachTip(bar, ()=>`<div class="t-title">${r.name}</div><div class="t-row"><span>Ukupno</span><b>${fmt(r.v)}</b></div>`);
+    svg.appendChild(bar);
+    const val = el("text",{x:mL+w+8,y:y+12,fill:"var(--ink)","font-size":12,"font-weight":600});
+    val.textContent = fmt(r.v); svg.appendChild(val);
+  });
+  wrap.appendChild(svg);
+}
+function renderBalance(){
+  const net = Array(12).fill(0);
+  txOfYear().filter(passFilter).forEach(t=>{ net[monthOf(t)] += (t.type==="prihod"? t.amount : -t.amount); });
+  const cum = []; let run=0;
+  for(let m=0;m<12;m++){ run+=net[m]; cum.push(run); }
+  renderLines("chartBalance", MONTHS_S, [{name:"Bilans do sada", color:"var(--s1)", vals:cum}],
+    i=>`<div class="t-row"><span>Ovaj mesec</span><b>${fmt(net[i])}</b></div>`);
+}
+const lastVal = x => x.entries.length ? x.entries[x.entries.length-1].value : 0;
+function assetNetWorth(){
+  let sum = 0;
+  state.assets.forEach(a=>{ if(state.filter==="svi" || a.member===state.filter) sum += lastVal(a); });
+  state.debts.forEach(d=>{ if(state.filter==="svi" || d.member===state.filter) sum -= lastVal(d); });
+  return sum;
+}
+function renderDash(){
+  document.querySelectorAll(".yearLbl").forEach(e=>e.textContent=state.year);
+  const tx = txOfYear().filter(passFilter);
+  const inc = tx.filter(t=>t.type==="prihod").reduce((s,t)=>s+t.amount,0);
+  const exp = tx.filter(t=>t.type==="rashod").reduce((s,t)=>s+t.amount,0);
+  const saved = tx.filter(t=>t.type==="rashod"&&t.category==="stednja").reduce((s,t)=>s+t.amount,0);
+  const bal = inc-exp;
+  const rate = inc>0 ? Math.round(100*saved/inc) : 0;
+  document.getElementById("dashTiles").innerHTML = `
+    <div class="tile"><div class="label">Prihodi ${state.year}.</div><div class="value">${fmt(inc)}</div></div>
+    <div class="tile"><div class="label">Rashodi ${state.year}.</div><div class="value">${fmt(exp)}</div></div>
+    <div class="tile"><div class="label">Bilans</div><div class="value ${bal>=0?"pos":"neg"}">${fmt(bal)}</div><div class="sub">prihodi − rashodi</div></div>
+    <div class="tile"><div class="label">Stopa štednje</div><div class="value">${rate}%</div><div class="sub">štednja / prihodi</div></div>
+    <div class="tile"><div class="label">Neto vrednost</div><div class="value ${assetNetWorth()>=0?"":"neg"}">${fmt(assetNetWorth())}</div><div class="sub">imovina − obaveze</div></div>`;
+  renderBadges();
+  renderMemberTable();
+  renderIncExp();
+  const totals = {};
+  tx.filter(t=>t.type==="rashod").forEach(t=>{ totals[t.category]=(totals[t.category]||0)+t.amount; });
+  renderCatBars("chartCats", totals);
+  renderBalance();
+  renderAnnualTable(tx);
+  renderYearsCompare();
+}
+/* ============ Poređenje godina + inflacija ============ */
+/* Okvirna godišnja inflacija u Srbiji (RZS, dec/dec) — prekucaj po potrebi */
+const DEFAULT_INFLATION = {2021:7.9, 2022:15.1, 2023:7.6, 2024:4.3, 2025:4.0, 2026:3.5};
+function inflOf(y){
+  const v = state.inflation[y];
+  return (v===undefined || v===null || v==="") ? (DEFAULT_INFLATION[y] ?? 0) : v;
+}
+function renderYearsCompare(){
+  const box = document.getElementById("yearsCompare");
+  const byYear = {};
+  state.tx.filter(passFilter).forEach(t=>{
+    const y = parseInt(t.date.slice(0,4),10);
+    const o = byYear[y] || (byYear[y] = {inc:0, exp:0, sav:0});
+    if(t.type==="prihod") o.inc += t.amount;
+    else { o.exp += t.amount; if(t.category==="stednja") o.sav += t.amount; }
+  });
+  const years = Object.keys(byYear).map(Number).sort();
+  if(years.length===0){ box.innerHTML = `<div class="empty">Unesi transakcije pa se vrati ovde.</div>`; return; }
+  const latest = years[years.length-1];
+  /* faktor preračuna u cene poslednje godine: proizvod (1+inflacija) za sve godine posle posmatrane */
+  const realFactor = y => {
+    let f = 1;
+    for(let k=y+1; k<=latest; k++) f *= 1 + inflOf(k)/100;
+    return f;
+  };
+  let html = "";
+  if(years.length>=2){
+    html += `<div class="settings-row" style="margin-bottom:10px">`;
+    for(let k=years[0]+1; k<=latest; k++){
+      html += `<div style="min-width:110px"><label>Inflacija ${k}. (%)</label>
+        <input class="mini" style="width:100%" type="number" step="0.1" data-infl="${k}" value="${inflOf(k)}"></div>`;
+    }
+    html += `</div><p class="note" style="margin-bottom:12px">Unapred upisan okvirni RZS prosek — slobodno prekucaj tačne vrednosti.</p>`;
+  }
+  html += `<div class="table-scroll"><table><thead><tr>
+    <th>Godina</th><th class="num">Prihodi</th><th class="num">Rashodi</th><th class="num">Bilans</th>
+    <th class="num">Bilans realno (cene ${latest}.)</th><th class="num">Štednja</th><th class="num">Stopa štednje</th>
+  </tr></thead><tbody>`;
+  years.forEach(y=>{
+    const o = byYear[y];
+    const bal = o.inc - o.exp;
+    const real = bal * realFactor(y);
+    const rate = o.inc>0 ? Math.round(100*o.sav/o.inc) : 0;
+    html += `<tr>
+      <td><b>${y}.</b>${y===latest?` <span class="note">(tekuća)</span>`:""}</td>
+      <td class="num">${fmtN(o.inc)}</td><td class="num">${fmtN(o.exp)}</td>
+      <td class="num" style="font-weight:600;${bal<0?"color:var(--crit)":""}">${fmtN(bal)}</td>
+      <td class="num" style="font-weight:600;${real<0?"color:var(--crit)":""}">${fmtN(real)}</td>
+      <td class="num">${fmtN(o.sav)}</td><td class="num">${rate}%</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  if(years.length>=2){
+    const prev = years[years.length-2];
+    const balL = byYear[latest].inc - byYear[latest].exp;
+    const balPnom = byYear[prev].inc - byYear[prev].exp;
+    const balPreal = balPnom * realFactor(prev);
+    const d = balPreal !== 0 ? Math.round(100*(balL-balPreal)/Math.abs(balPreal)) : null;
+    html += `<div class="callout" style="margin-top:12px">
+      ${d===null ? `Bilans ${prev}. je bio nula — poređenje nije moguće.` :
+        d>=0
+        ? `📈 <b>Realno napredujete:</b> bilans ${latest}. je <b>${d}% bolji</b> od ${prev}. kad se uračuna inflacija (${fmtN(balL)} vs ${fmtN(balPreal)} u istim cenama).`
+        : `📉 <b>Realno je slabije:</b> bilans ${latest}. je <b>${Math.abs(d)}% slabiji</b> od ${prev}. kad se uračuna inflacija (${fmtN(balL)} vs ${fmtN(balPreal)} u istim cenama) — brojke rastu, ali cene rastu brže.`}
+    </div>`;
+  } else {
+    html += `<p class="note" style="margin-top:10px">Kad budeš imao bar dve godine podataka, ovde stiže i realno poređenje sa inflacijom.</p>`;
+  }
+  box.innerHTML = html;
+  box.querySelectorAll("[data-infl]").forEach(inp=>inp.addEventListener("change",()=>{
+    const v = parseFloat(inp.value);
+    state.inflation[inp.dataset.infl] = isFinite(v) ? v : 0;
+    save(); renderYearsCompare();
+  }));
+}
+function renderBadges(){
+  const box = document.getElementById("dashBadges");
+  const tx = txOfYear(); /* cela porodica, bez filtera */
+  const now = new Date();
+  const lastDone = (state.year == now.getFullYear()) ? now.getMonth()-1 : 11;
+  let streak = 0;
+  for(let m=lastDone; m>=0; m--){
+    const mt = tx.filter(t=>monthOf(t)===m);
+    if(!mt.length) break;
+    const bal = mt.reduce((s,t)=>s+(t.type==="prihod"?t.amount:-t.amount),0);
+    if(bal>0) streak++; else break;
+  }
+  const inc = tx.filter(t=>t.type==="prihod").reduce((s,t)=>s+t.amount,0);
+  const sav = tx.filter(t=>t.type==="rashod"&&t.category==="stednja").reduce((s,t)=>s+t.amount,0);
+  const rate = inc>0 ? Math.round(100*sav/inc) : 0;
+  const active = state.goals.filter(g=>goalSaved(g)<g.target);
+  const onTrack = active.filter(g=>{
+    const left = monthsLeft(g.deadline);
+    if(left<=0) return false;
+    return goalMonthlyAvg(g) >= (g.target-goalSaved(g))/left;
+  }).length;
+  const doneGoals = state.goals.length - active.length;
+  const mWord = n => n===1 ? "mesec" : (n<5 ? "meseca" : "meseci");
+  const b = [];
+  if(streak>0) b.push(`<span class="badge win">🔥 ${streak} ${mWord(streak)} zaredom u plusu</span>`);
+  if(inc>0) b.push(`<span class="badge ${rate>=20?"win":""}">${rate>=20?"💪":"💰"} Stopa štednje ${rate}%${rate>=20?" — pravilo 20% ispunjeno!":" (preporuka ≥ 20%)"}</span>`);
+  if(active.length) b.push(`<span class="badge ${onTrack===active.length?"win":""}">🎯 ${onTrack}/${active.length} ciljeva na putu</span>`);
+  if(doneGoals>0) b.push(`<span class="badge win">🏆 ${doneGoals} ${doneGoals===1?"cilj ostvaren":"ciljeva ostvareno"}</span>`);
+  box.innerHTML = b.join("");
+}
+function renderMemberTable(){
+  const all = txOfYear();
+  const sumOf = (arr,mem) => arr.filter(x=>x.member===mem).reduce((s,x)=>s+lastVal(x),0);
+  const rows = MEMBERS.map(mem=>{
+    const tx = all.filter(t=>t.member===mem);
+    const inc = tx.filter(t=>t.type==="prihod").reduce((s,t)=>s+t.amount,0);
+    const exp = tx.filter(t=>t.type==="rashod").reduce((s,t)=>s+t.amount,0);
+    const sav = tx.filter(t=>t.type==="rashod"&&t.category==="stednja").reduce((s,t)=>s+t.amount,0);
+    const ast = sumOf(state.assets,mem), dug = sumOf(state.debts,mem);
+    return {mem, inc, exp, bal:inc-exp, sav, ast, dug, net:ast-dug};
+  });
+  const tot = rows.reduce((a,r)=>({inc:a.inc+r.inc, exp:a.exp+r.exp, bal:a.bal+r.bal, sav:a.sav+r.sav, ast:a.ast+r.ast, dug:a.dug+r.dug, net:a.net+r.net}),{inc:0,exp:0,bal:0,sav:0,ast:0,dug:0,net:0});
+  const cell = (v,bold)=>`<td class="num" style="${v<0?"color:var(--crit);":""}${bold?"font-weight:700;":""}">${fmtN(v)}</td>`;
+  let html = `<table><thead><tr><th>Član</th><th class="num">Prihodi</th><th class="num">Rashodi</th><th class="num">Bilans</th><th class="num">Štednja</th><th class="num">Imovina</th><th class="num">Obaveze</th><th class="num">Neto vrednost</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    html += `<tr><td>${memberBadge(r.mem)}</td>${cell(r.inc)}${cell(r.exp)}${cell(r.bal)}${cell(r.sav)}${cell(r.ast)}${cell(-r.dug||0)}${cell(r.net,1)}</tr>`;
+  });
+  html += `<tr><td><b>Ukupno porodica</b></td>${cell(tot.inc,1)}${cell(tot.exp,1)}${cell(tot.bal,1)}${cell(tot.sav,1)}${cell(tot.ast,1)}${cell(-tot.dug||0,1)}${cell(tot.net,1)}</tr>`;
+  html += `</tbody></table>`;
+  document.getElementById("memberTable").innerHTML = html;
+}
+function renderAnnualTable(tx){
+  const grid = {}; EXP_CATS.forEach(c=>grid[c.id]=Array(12).fill(0));
+  const incRow = Array(12).fill(0);
+  tx.forEach(t=>{
+    if(t.type==="prihod") incRow[monthOf(t)] += t.amount;
+    else if(grid[t.category]) grid[t.category][monthOf(t)] += t.amount;
+  });
+  let html = `<table><thead><tr><th>Kategorija</th>${MONTHS_S.map(m=>`<th class="num">${m}</th>`).join("")}<th class="num">Ukupno</th></tr></thead><tbody>`;
+  html += `<tr><td><b>Prihodi</b></td>${incRow.map(v=>`<td class="num">${v?fmtN(v):"–"}</td>`).join("")}<td class="num"><b>${fmtN(incRow.reduce((a,b)=>a+b,0))}</b></td></tr>`;
+  EXP_CATS.forEach(c=>{
+    const row = grid[c.id], sum = row.reduce((a,b)=>a+b,0);
+    html += `<tr><td><span class="cat-dot" style="background:${c.color}"></span>${c.name}</td>${row.map(v=>`<td class="num">${v?fmtN(v):"–"}</td>`).join("")}<td class="num"><b>${fmtN(sum)}</b></td></tr>`;
+  });
+  const expRow = Array(12).fill(0);
+  Object.values(grid).forEach(r=>r.forEach((v,i)=>expRow[i]+=v));
+  html += `<tr><td><b>Rashodi ukupno</b></td>${expRow.map(v=>`<td class="num"><b>${v?fmtN(v):"–"}</b></td>`).join("")}<td class="num"><b>${fmtN(expRow.reduce((a,b)=>a+b,0))}</b></td></tr>`;
+  html += `</tbody></table>`;
+  document.getElementById("annualTable").innerHTML = html;
+}
+
+/* ============ Mesečno ============ */
+function renderMonthBtns(){
+  const box = document.getElementById("monthBtns");
+  box.innerHTML = "";
+  MONTHS_S.forEach((m,i)=>{
+    const b = document.createElement("button");
+    b.textContent = m;
+    b.classList.toggle("active", i===state.selMonth);
+    b.addEventListener("click",()=>{ state.selMonth=i; save(); renderMonth(); });
+    box.appendChild(b);
+  });
+}
+function fillMemberSelects(){
+  const opts = `<option value="zajedno">🤝 Zajedničko</option>
+    <option value="muz">👤 ${escapeHtml(state.names.muz)}</option>
+    <option value="zena">👤 ${escapeHtml(state.names.zena)}</option>`;
+  ["txMember","gMember","aMember","dMember","csvMember"].forEach(id=>{
+    const s = document.getElementById(id);
+    const cur = s.value;
+    s.innerHTML = opts;
+    if(cur) s.value = cur;
+  });
+}
+function fillCatSelect(){
+  const type = document.getElementById("txType").value;
+  const sel = document.getElementById("txCat");
+  const cats = type==="prihod" ? INC_CATS : EXP_CATS;
+  sel.innerHTML = cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+  updateGoalPick();
+}
+function updateGoalPick(){
+  const isSaving = document.getElementById("txType").value==="rashod" && document.getElementById("txCat").value==="stednja";
+  const wrap = document.getElementById("goalPickWrap");
+  const active = state.goals.filter(g=>!g.done);
+  wrap.style.display = (isSaving && state.goals.length) ? "block" : "none";
+  document.getElementById("txGoal").innerHTML =
+    `<option value="">— bez cilja —</option>` +
+    state.goals.map(g=>`<option value="${g.id}">${escapeHtml(g.name)}</option>`).join("");
+}
+document.getElementById("txType").addEventListener("change", fillCatSelect);
+document.getElementById("txCat").addEventListener("change", updateGoalPick);
+function updateEntryCard(){
+  const t = document.getElementById("txType").value;
+  const card = document.getElementById("txCard");
+  card.classList.toggle("rashod", t==="rashod");
+  card.classList.toggle("prihod", t==="prihod");
+  document.getElementById("txFormTitle").textContent = t==="prihod" ? "➕ Novi prihod" : "➖ Novi trošak";
+  document.querySelectorAll("#typeSeg button").forEach(x=>x.classList.toggle("active", x.dataset.t===t));
+  document.getElementById("quickChips").style.display = t==="rashod" ? "flex" : "none";
+}
+/* brzi unos čestih troškova — popunjava kategoriju i opis */
+const QUICK = [
+  {label:"🏠 Kirija",           cat:"dom",       note:"Kirija"},
+  {label:"⚡ Struja",           cat:"racuni",    note:"Struja"},
+  {label:"🏢 Infostan",         cat:"racuni",    note:"Infostan"},
+  {label:"📶 Internet i TV",    cat:"racuni",    note:"Internet i TV"},
+  {label:"📱 Telefon",          cat:"racuni",    note:"Mobilni telefon"},
+  {label:"🛒 Namirnice",        cat:"potrosnja", note:"Namirnice"},
+  {label:"⛽ Gorivo",           cat:"vozilo",    note:"Gorivo"},
+  {label:"🚗 Registracija",     cat:"vozilo",    note:"Registracija auta"},
+  {label:"🔧 Servis auta",      cat:"vozilo",    note:"Servis / održavanje"},
+  {label:"👕 Garderoba",        cat:"garderoba", note:"Garderoba"},
+  {label:"⌚ Sat / nakit",      cat:"garderoba", note:"Sat / nakit"},
+  {label:"📺 Pretplata",        cat:"pretplate", note:"Pretplata"},
+];
+function initQuickChips(){
+  const box = document.getElementById("quickChips");
+  box.innerHTML = QUICK.map((q,i)=>`<button type="button" class="chip" data-q="${i}">${q.label}</button>`).join("");
+  box.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{
+    const q = QUICK[b.dataset.q];
+    document.getElementById("txType").value = "rashod";
+    updateEntryCard(); fillCatSelect();
+    document.getElementById("txCat").value = q.cat;
+    updateGoalPick();
+    document.getElementById("txNote").value = q.note;
+    document.getElementById("txAmount").focus();
+  }));
+}
+/* predlozi ciljeva */
+const GOAL_IDEAS = [
+  "Učešće za stan 🏠","Kupovina auta 🚗","Letovanje ✈️","Zimovanje ⛷️",
+  "Hitna rezerva (3–6 meseci) 🛟","Renoviranje 🔨","Nameštaj 🛋️","Svadba 💍",
+  "Beba 👶","Školovanje dece 🎓","Investiciono zlato 🪙","Sat ⌚",
+  "Tehnika / laptop 💻","Pokretanje biznisa 🚀","Penzija / dugoročno 🌅","Zdravlje / stomatolog 🦷"
+];
+function initGoalChips(){
+  const box = document.getElementById("goalChips");
+  box.innerHTML = GOAL_IDEAS.map(g=>`<button type="button" class="chip">${g}</button>`).join("");
+  box.querySelectorAll(".chip").forEach(b=>b.addEventListener("click",()=>{
+    document.getElementById("gName").value = b.textContent;
+    document.getElementById("gTarget").focus();
+  }));
+}
+document.querySelectorAll("#typeSeg button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    document.getElementById("txType").value = b.dataset.t;
+    updateEntryCard();
+    fillCatSelect();
+  });
+});
+
+document.getElementById("txForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const amount = parseFloat(document.getElementById("txAmount").value);
+  if(!(amount>0)) return;
+  const type = document.getElementById("txType").value;
+  const category = document.getElementById("txCat").value;
+  const goalSel = document.getElementById("txGoal");
+  state.tx.push({
+    id: uid(),
+    date: document.getElementById("txDate").value,
+    type, category,
+    member: document.getElementById("txMember").value,
+    enteredBy: device || undefined,
+    link: pendingScanLink || undefined,
+    note: document.getElementById("txNote").value.trim(),
+    goalId: (type==="rashod" && category==="stednja" && goalSel.value) ? goalSel.value : undefined,
+    amount
+  });
+  save();
+  pendingScanLink = null;
+  document.getElementById("scanPanel").innerHTML = "";
+  document.getElementById("txAmount").value = "";
+  document.getElementById("txNote").value = "";
+  document.getElementById("txGoal").value = "";
+  const d = document.getElementById("txDate").value;
+  state.selMonth = parseInt(d.slice(5,7),10)-1;
+  renderAll();
+});
+
+function familyAvgIncome(){
+  const tx = txOfYear();
+  const now = new Date();
+  const lastM = (state.year == now.getFullYear()) ? now.getMonth() : 11;
+  const months = new Set(tx.filter(t=>t.type==="prihod" && monthOf(t)<=lastM).map(monthOf));
+  if(!months.size) return 0;
+  return tx.filter(t=>t.type==="prihod" && monthOf(t)<=lastM).reduce((s,t)=>s+t.amount,0)/months.size;
+}
+document.getElementById("btnSuggestBudget").addEventListener("click", ()=>{
+  const income = familyAvgIncome();
+  if(!(income>0)){ alert("Prvo unesi bar jedan mesec prihoda, da imamo od čega da računamo."); return; }
+  if(Object.keys(state.budgets).length && !confirm("Prepisati postojeći plan predlogom po pravilu 50/30/20?")) return;
+  const shares = {dom:.30, racuni:.10, potrosnja:.15, garderoba:.05, pretplate:.03, vozilo:.10, dugovi:.07, stednja:.20};
+  Object.entries(shares).forEach(([k,p])=>{ state.budgets[k] = Math.round(income*p/500)*500; });
+  save(); renderBudget();
+});
+function renderBudget(){
+  const m = state.selMonth;
+  document.getElementById("budgetLbl").textContent = MONTHS[m];
+  const tx = txOfYear();
+  /* potrošeno u izabranom mesecu (cela porodica) */
+  const spent = {};
+  tx.forEach(t=>{ if(t.type==="rashod" && monthOf(t)===m) spent[t.category]=(spent[t.category]||0)+t.amount; });
+  /* prosek iz prethodnih meseci koji imaju unose */
+  const prevMonths = new Set(tx.filter(t=>monthOf(t)<m).map(monthOf));
+  const k = prevMonths.size;
+  const avg = {};
+  if(k>0) tx.forEach(t=>{ if(t.type==="rashod" && monthOf(t)<m) avg[t.category]=(avg[t.category]||0)+t.amount/k; });
+
+  let html = `<table><thead><tr><th>Kategorija</th><th class="num">Tvoj prosek/mes</th><th class="num">Plan (opciono)</th><th class="num">Ovaj mesec</th><th>Status</th></tr></thead><tbody>`;
+  let refSum=0, spentSum=0, anyRef=false;
+  EXP_CATS.forEach(c=>{
+    const a = avg[c.id]||0, b = state.budgets[c.id]||0, s = spent[c.id]||0;
+    const ref = b>0 ? b : (a>0 ? a : 0);
+    let status = `<span class="note">—</span>`;
+    if(ref>0){
+      const d = Math.round(100*(s-ref)/ref);
+      if(c.id==="stednja"){
+        status = s>=ref
+          ? `<span style="color:var(--good-text);font-weight:700">💪 +${d}% više štednje</span>`
+          : `<span style="color:var(--ink-2);font-weight:600">📉 ${d}% manje štednje</span>`;
+      } else if(s<=ref){
+        status = `<span style="color:var(--good-text);font-weight:700">✅ ${d===0?"tačno na planu":Math.abs(d)+"% ispod"}</span>`;
+      } else if(d<=10){
+        status = `<span style="font-weight:600">⚠️ +${d}% iznad</span>`;
+      } else {
+        status = `<span style="color:var(--crit);font-weight:700">🔴 +${d}% iznad</span>`;
+      }
+      if(c.id!=="stednja"){ refSum+=ref; spentSum+=s; anyRef=true; }
+    }
+    html += `<tr>
+      <td><span class="cat-dot" style="background:${c.color}"></span>${c.name}</td>
+      <td class="num">${a>0?fmtN(a):"—"}</td>
+      <td class="num"><input class="mini" type="number" min="0" step="100" data-budget="${c.id}" value="${b||""}" placeholder="auto"></td>
+      <td class="num" style="font-weight:600">${fmtN(s)}</td>
+      <td>${status}</td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  const box = document.getElementById("budgetTable");
+  box.innerHTML = html;
+  box.querySelectorAll("[data-budget]").forEach(inp=>{
+    inp.addEventListener("change",()=>{
+      const v = parseFloat(inp.value);
+      if(v>0) state.budgets[inp.dataset.budget]=v; else delete state.budgets[inp.dataset.budget];
+      save(); renderBudget();
+    });
+  });
+  /* pohvala / upozorenje za ceo mesec (bez štednje) */
+  const praise = document.getElementById("budgetPraise");
+  if(!anyRef){
+    praise.innerHTML = k===0
+      ? `<div class="callout">ℹ️ Kad uneseš prvi pun mesec troškova, ovde ću sam projektovati očekivanu potrošnju i pratiti da li si iznad ili ispod svog proseka.</div>`
+      : "";
+  } else {
+    const d = spentSum - refSum;
+    const pct = Math.round(100*Math.abs(d)/refSum);
+    if(d<=0 && spentSum>0){
+      praise.innerHTML = `<div class="callout" style="border-left-color:var(--good)">🎉 <b>Bravo!</b> Ovog meseca ste ${pct===0?"tačno na planu":`<b>${pct}% ispod</b> svog proseka/plana (−${fmt(Math.abs(d))})`} — taj višak preusmerite u 🎯 ciljeve ili 💎 imovinu, tako se grade dugoročni aseti.</div>`;
+    } else if(d>0 && d<=refSum*0.05){
+      praise.innerHTML = `<div class="callout">👌 Skoro na planu — svega +${fmt(d)} iznad proseka. Sitnica, ali oko na crvene kategorije.</div>`;
+    } else if(d>0){
+      praise.innerHTML = `<div class="callout" style="border-left-color:var(--crit)">😬 Potrošnja je <b>${pct}% iznad</b> proseka/plana (+${fmt(d)}). Pogledajte kategorije označene 🔴 — svaki dinar iznad plana je dinar manje za ciljeve.</div>`;
+    } else {
+      praise.innerHTML = "";
+    }
+  }
+}
+
+function renderMonth(){
+  renderMonthBtns();
+  const m = state.selMonth;
+  document.getElementById("monthCatLbl").textContent = MONTHS[m];
+  document.getElementById("monthTxLbl").textContent  = MONTHS[m]+" "+state.year+".";
+  const dEl = document.getElementById("txDate");
+  if(!dEl.value || parseInt(dEl.value.slice(5,7),10)-1!==m || dEl.value.slice(0,4)!=String(state.year)){
+    const today = new Date();
+    const day = (today.getFullYear()==state.year && today.getMonth()===m) ? today.getDate() : 1;
+    dEl.value = `${state.year}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+  }
+  const tx = txOfYear().filter(t=>monthOf(t)===m && passFilter(t)).sort((a,b)=>b.date.localeCompare(a.date));
+  const inc = tx.filter(t=>t.type==="prihod").reduce((s,t)=>s+t.amount,0);
+  const exp = tx.filter(t=>t.type==="rashod").reduce((s,t)=>s+t.amount,0);
+  const saved = tx.filter(t=>t.type==="rashod"&&t.category==="stednja").reduce((s,t)=>s+t.amount,0);
+  document.getElementById("monthTiles").innerHTML = `
+    <div class="tile"><div class="label">Prihodi</div><div class="value">${fmt(inc)}</div></div>
+    <div class="tile"><div class="label">Rashodi</div><div class="value">${fmt(exp)}</div></div>
+    <div class="tile"><div class="label">Bilans meseca</div><div class="value ${inc-exp>=0?"pos":"neg"}">${fmt(inc-exp)}</div></div>
+    <div class="tile"><div class="label">Uplaćeno u štednju</div><div class="value">${fmt(saved)}</div></div>`;
+  renderBudget();
+  const totals = {};
+  tx.filter(t=>t.type==="rashod").forEach(t=>{ totals[t.category]=(totals[t.category]||0)+t.amount; });
+  renderCatBars("chartMonthCats", totals);
+
+  const box = document.getElementById("txTable");
+  if(tx.length===0){ box.innerHTML = `<div class="empty">Nema transakcija za ovaj mesec i filter — dodaj prvu iznad. 👆</div>`; return; }
+  let html = `<table><thead><tr><th>Datum</th><th>Tip</th><th>Kategorija</th><th>Čije</th><th>Opis</th><th class="num">Iznos</th><th></th></tr></thead><tbody>`;
+  tx.forEach(t=>{
+    const c = catById(t.category);
+    const goal = t.goalId ? state.goals.find(g=>g.id===t.goalId) : null;
+    html += `<tr>
+      <td>${t.date.slice(8,10)}.${t.date.slice(5,7)}.</td>
+      <td>${t.type==="prihod"?"Prihod":"Rashod"}</td>
+      <td><span class="cat-dot" style="background:${c.color}"></span>${c.name}${goal?` <span class="note">→ ${escapeHtml(goal.name)}</span>`:""}</td>
+      <td>${memberBadge(t.member)}${t.enteredBy?`<div class="note">unos: ${escapeHtml(memberName(t.enteredBy))}</div>`:""}</td>
+      <td>${escapeHtml(t.note)||"<span style='color:var(--muted)'>—</span>"}${t.link&&/^https:\/\/suf\.purs\.gov\.rs\//i.test(t.link)?` <a href="${escapeHtml(t.link)}" target="_blank" rel="noopener" title="Otvori fiskalni račun">🔗</a>`:""}</td>
+      <td class="num" style="font-weight:600;${t.type==="prihod"?"color:var(--good-text)":""}">${t.type==="prihod"?"+":"−"}${fmt(t.amount)}</td>
+      <td><button class="del" title="Obriši" data-del="${t.id}">✕</button></td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  box.innerHTML = html;
+  box.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
+    state.tx = state.tx.filter(t=>t.id!==b.dataset.del);
+    save(); renderAll();
+  }));
+}
+
+/* ============ Ciljevi ============ */
+function goalSaved(g){
+  return (g.start||0) + state.tx.filter(t=>t.goalId===g.id).reduce((s,t)=>s+t.amount,0);
+}
+function monthsLeft(deadline){
+  const now = new Date();
+  const [y,m] = deadline.split("-").map(Number);
+  return (y - now.getFullYear())*12 + (m-1 - now.getMonth());
+}
+function goalMonthlyAvg(g){
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-90);
+  const cs = cutoff.toISOString().slice(0,10);
+  const sum = state.tx.filter(t=>t.goalId===g.id && t.date>=cs).reduce((s,t)=>s+t.amount,0);
+  return sum/3;
+}
+document.getElementById("goalForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const target = parseFloat(document.getElementById("gTarget").value);
+  const deadline = document.getElementById("gDeadline").value;
+  if(!(target>0) || !deadline) return;
+  state.goals.push({
+    id: uid(),
+    name: document.getElementById("gName").value.trim(),
+    member: document.getElementById("gMember").value,
+    target,
+    start: parseFloat(document.getElementById("gStart").value)||0,
+    deadline
+  });
+  save();
+  document.getElementById("goalForm").reset();
+  document.getElementById("gStart").value = 0;
+  renderAll();
+});
+function renderGoals(){
+  const grid = document.getElementById("goalGrid");
+  grid.innerHTML = "";
+  document.getElementById("goalsEmpty").style.display = state.goals.length ? "none" : "block";
+  state.goals.forEach(g=>{
+    const saved = goalSaved(g);
+    const pct = Math.min(100, 100*saved/g.target);
+    const left = monthsLeft(g.deadline);
+    const done = saved >= g.target;
+    const needed = left>0 ? Math.max(0,(g.target-saved))/left : (g.target-saved);
+    const avg = goalMonthlyAvg(g);
+    let status;
+    if(done) status = `<div class="g-status ok">✅ Cilj ostvaren!</div>`;
+    else if(left<=0) status = `<div class="g-status behind">⏰ Rok je prošao — nedostaje ${fmt(g.target-saved)}</div>`;
+    else if(avg >= needed && avg>0) status = `<div class="g-status ok">✅ Na putu si — prosek uplata ${fmt(avg)}/mes ≥ potrebno ${fmt(needed)}/mes</div>`;
+    else status = `<div class="g-status ${avg>0?"behind":"neutral"}">📌 Potrebno ${fmt(needed)}/mes narednih ${left} mes.${avg>0?` (tvoj prosek: ${fmt(avg)}/mes)`:""}</div>`;
+    const [dy,dm] = g.deadline.split("-").map(Number);
+    const card = document.createElement("div");
+    card.className = "goal";
+    card.innerHTML = `
+      <div class="g-head"><h3>${escapeHtml(g.name)}</h3>${memberBadge(g.member)}</div>
+      <div class="g-target">Cilj: <b>${fmt(g.target)}</b> do ${MONTHS[dm-1].toLowerCase()} ${dy}.</div>
+      <div class="pbar ${done?"done":""}"><div style="width:${pct}%"></div></div>
+      <div class="g-stats"><span>Ušteđeno: <b>${fmt(saved)}</b></span><span>${Math.round(pct)}%</span></div>
+      ${status}
+      <div class="g-foot">
+        <span class="note">Uplate: Mesečno → Štednja → izaberi cilj</span>
+        <button class="del" title="Obriši cilj" data-goal="${g.id}">✕</button>
+      </div>`;
+    grid.appendChild(card);
+  });
+  grid.querySelectorAll("[data-goal]").forEach(b=>b.addEventListener("click",()=>{
+    if(confirm("Obrisati ovaj cilj? Transakcije ostaju sačuvane.")){
+      state.goals = state.goals.filter(g=>g.id!==b.dataset.goal);
+      state.tx.forEach(t=>{ if(t.goalId===b.dataset.goal) delete t.goalId; });
+      save(); renderAll();
+    }
+  }));
+}
+
+/* ============ Projekcija ============ */
+function monthlyAverages(){
+  /* prosek iz meseci tekuće godine koji imaju unose (do tekućeg meseca ako je izabrana tekuća godina) */
+  const tx = txOfYear().filter(passFilter);
+  const now = new Date();
+  const lastM = (state.year == now.getFullYear()) ? now.getMonth() : 11;
+  const monthsWithData = new Set(tx.map(monthOf));
+  const used = [...monthsWithData].filter(m=>m<=lastM);
+  const k = used.length;
+  if(k===0) return {inc:0, exp:0, k:0};
+  let inc=0, exp=0;
+  tx.forEach(t=>{ if(monthOf(t)<=lastM){ if(t.type==="prihod") inc+=t.amount; else exp+=t.amount; } });
+  return {inc:inc/k, exp:exp/k, k};
+}
+["pOnce","pPct","pExtra"].forEach(id=>{
+  document.getElementById(id).addEventListener("input", ()=>{
+    state.proj = {
+      once: parseFloat(document.getElementById("pOnce").value)||0,
+      pct:  parseFloat(document.getElementById("pPct").value)||0,
+      extra:parseFloat(document.getElementById("pExtra").value)||0
+    };
+    save(); renderProj();
+  });
+});
+function renderProj(){
+  document.getElementById("pOnce").value = state.proj.once;
+  document.getElementById("pPct").value = state.proj.pct;
+  document.getElementById("pExtra").value = state.proj.extra;
+  document.getElementById("pPctVal").textContent = (state.proj.pct>0?"+":"")+state.proj.pct+"%";
+
+  const avg = monthlyAverages();
+  const basis = avg.k>0
+    ? `prosek iz ${avg.k} ${avg.k===1?"meseca":"meseci"} sa podacima: prihodi ${fmt(avg.inc)}/mes, rashodi ${fmt(avg.exp)}/mes`
+    : "još nema unetih podataka — unesi transakcije da projekcija proradi";
+  document.getElementById("projBasis").textContent = basis;
+
+  const now = new Date();
+  const labels = [];
+  for(let i=1;i<=12;i++){
+    const d = new Date(now.getFullYear(), now.getMonth()+i, 1);
+    labels.push(MONTHS_S[d.getMonth()] + (d.getMonth()===0 ? " "+String(d.getFullYear()).slice(2) : ""));
+  }
+  const baseSurplus = avg.inc - avg.exp;
+  const adjSurplus  = (avg.inc + state.proj.extra) - avg.exp*(1+state.proj.pct/100);
+  const base=[], adj=[];
+  let b=0, a=0;
+  for(let i=1;i<=12;i++){
+    b += baseSurplus;
+    a += adjSurplus - (i===1 ? state.proj.once : 0);
+    base.push(b); adj.push(a);
+  }
+  renderLines("chartProj", labels, [
+    {name:"Osnovni scenario", color:"var(--s1)", vals:base},
+    {name:"Sa izmenama", color:"var(--s5)", vals:adj}
+  ]);
+  const diff = adj[11]-base[11];
+  document.getElementById("projSummary").innerHTML = avg.k>0
+    ? `Za 12 meseci — osnovni scenario: <b>${fmt(base[11])}</b> ušteđeno. Sa izmenama: <b>${fmt(adj[11])}</b>
+       (${diff>=0?"+":""}${fmt(diff)}). Mesečni višak: <b>${fmt(baseSurplus)}</b> → <b>${fmt(adjSurplus)}</b>.
+       ${adjSurplus<0?"⚠️ <b>U ovom scenariju trošiš više nego što zarađuješ — svaki mesec ideš u minus.</b>":""}`
+    : "Unesi bar jedan mesec prihoda i rashoda pa se vrati ovde.";
+
+  /* uticaj na ciljeve */
+  const active = state.goals.filter(g=>goalSaved(g)<g.target);
+  const box = document.getElementById("projGoals");
+  if(active.length===0){ box.innerHTML = `<div class="empty">Nema aktivnih ciljeva. Dodaj ih u tabu 🎯 Ciljevi.</div>`; return; }
+  let needTotal = 0;
+  let html = `<table><thead><tr><th>Cilj</th><th class="num">Nedostaje</th><th class="num">Rok</th><th class="num">Potrebno mesečno</th></tr></thead><tbody>`;
+  active.forEach(g=>{
+    const saved = goalSaved(g);
+    const left = monthsLeft(g.deadline);
+    const needed = left>0 ? (g.target-saved)/left : (g.target-saved);
+    needTotal += needed;
+    const [dy,dm] = g.deadline.split("-").map(Number);
+    html += `<tr><td>${escapeHtml(g.name)}</td><td class="num">${fmt(g.target-saved)}</td>
+      <td class="num">${String(dm).padStart(2,"0")}/${dy}${left<=0?" ⏰":""}</td>
+      <td class="num"><b>${fmt(needed)}</b>${left<=0?" <span class='note'>(odmah)</span>":""}</td></tr>`;
+  });
+  const cover = adjSurplus>=needTotal;
+  html += `<tr><td><b>Ukupno potrebno mesečno</b></td><td></td><td></td><td class="num"><b>${fmt(needTotal)}</b></td></tr>`;
+  html += `</tbody></table>
+    <div class="callout" style="border-left-color:${cover?"var(--good)":"var(--crit)"}">
+      ${avg.k===0 ? "Unesi podatke da uporedimo višak sa potrebama ciljeva."
+        : cover
+        ? `✅ Projektovani mesečni višak <b>${fmt(adjSurplus)}</b> pokriva sve ciljeve (<b>${fmt(needTotal)}</b>/mes) — ostaje ti <b>${fmt(adjSurplus-needTotal)}</b>/mes slobodno.`
+        : `⚠️ Projektovani mesečni višak <b>${fmt(adjSurplus)}</b> NE pokriva sve ciljeve (<b>${fmt(needTotal)}</b>/mes) — nedostaje <b>${fmt(needTotal-adjSurplus)}</b>/mes. Pomeraj rokove, smanji ciljeve ili potrošnju.`}
+    </div>`;
+  box.innerHTML = html;
+}
+
+/* ============ Imovina ============ */
+document.getElementById("assetForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const value = parseFloat(document.getElementById("aValue").value);
+  const date = document.getElementById("aDate").value;
+  if(!(value>=0) || !date) return;
+  state.assets.push({
+    id: uid(),
+    name: document.getElementById("aName").value.trim(),
+    type: document.getElementById("aType").value,
+    member: document.getElementById("aMember").value,
+    entries: [{date, value}]
+  });
+  save();
+  document.getElementById("assetForm").reset();
+  setAssetDateDefault();
+  renderAll();
+});
+function setAssetDateDefault(){
+  document.getElementById("aDate").value = new Date().toISOString().slice(0,10);
+  document.getElementById("dDate").value = new Date().toISOString().slice(0,10);
+}
+document.getElementById("debtForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const value = parseFloat(document.getElementById("dValue").value);
+  const date = document.getElementById("dDate").value;
+  if(!(value>=0) || !date) return;
+  state.debts.push({
+    id: uid(),
+    name: document.getElementById("dName").value.trim(),
+    type: document.getElementById("dType").value,
+    member: document.getElementById("dMember").value,
+    rate: parseFloat(document.getElementById("dRate").value)||0,
+    entries: [{date, value}]
+  });
+  save();
+  document.getElementById("debtForm").reset();
+  setAssetDateDefault();
+  renderAll();
+});
+function filteredAssets(){
+  return state.assets.filter(a=>state.filter==="svi" || a.member===state.filter);
+}
+function filteredDebts(){
+  return state.debts.filter(d=>state.filter==="svi" || d.member===state.filter);
+}
+const LIQUID_TYPES = ["Gotovina i tekući računi","Devizna štednja"];
+function familyAvgExpenses(){
+  /* prosečni mesečni troškovi (bez štednje), cela porodica */
+  const tx = txOfYear();
+  const now = new Date();
+  const lastM = (state.year == now.getFullYear()) ? now.getMonth() : 11;
+  const rel = tx.filter(t=>t.type==="rashod" && t.category!=="stednja" && monthOf(t)<=lastM);
+  const months = new Set(rel.map(monthOf));
+  if(!months.size) return 0;
+  return rel.reduce((s,t)=>s+t.amount,0)/months.size;
+}
+function renderAssets(){
+  const assets = filteredAssets();
+  const debts = filteredDebts();
+  const totalA = assets.reduce((s,a)=>s+lastVal(a), 0);
+  const totalD = debts.reduce((s,d)=>s+lastVal(d), 0);
+  const net = totalA - totalD;
+  const liquid = assets.filter(a=>LIQUID_TYPES.includes(a.type)).reduce((s,a)=>s+lastVal(a),0);
+  const avgExp = familyAvgExpenses();
+  const reserve = avgExp>0 ? liquid/avgExp : null;
+  const reserveTxt = reserve===null ? "—" : reserve.toFixed(1).replace(".",",");
+  document.getElementById("assetTiles").innerHTML = `
+    <div class="tile"><div class="label">Neto vrednost</div><div class="value ${net>=0?"pos":"neg"}">${fmt(net)}</div><div class="sub">imovina − obaveze</div></div>
+    <div class="tile"><div class="label">Imovina ukupno</div><div class="value">${fmt(totalA)}</div><div class="sub">${assets.length} ${assets.length===1?"stavka":"stavki"}</div></div>
+    <div class="tile"><div class="label">Obaveze ukupno</div><div class="value ${totalD>0?"neg":""}">${totalD>0?"−":""}${fmt(totalD)}</div><div class="sub">${debts.length} ${debts.length===1?"kredit/dug":"kredita/dugova"}</div></div>
+    <div class="tile"><div class="label">🛟 Rezerva</div><div class="value">${reserveTxt}${reserve!==null?" mes.":""}</div><div class="sub">${reserve===null?"unesi troškove i gotovinu":"gotovina ÷ mesečni troškovi (cilj 3–6)"}</div></div>`;
+
+  /* linije: imovina, obaveze, neto — mesečni preseci */
+  const wrap = document.getElementById("chartAssets");
+  const allDates = assets.flatMap(a=>a.entries.map(e=>e.date))
+    .concat(debts.flatMap(d=>d.entries.map(e=>e.date))).sort();
+  if(allDates.length<1){ wrap.innerHTML = `<div class="empty">Dodaj imovinu i obaveze da vidiš grafikon.</div>`; }
+  else{
+    const start = new Date(allDates[0].slice(0,7)+"-01");
+    const end = new Date();
+    const aPts=[], dPts=[], nPts=[], labels=[];
+    const cur = new Date(start);
+    const sumAt = (arr, cutoff) => arr.reduce((s,x)=>{
+      const past = x.entries.filter(e=>e.date<=cutoff);
+      return s + (past.length ? past[past.length-1].value : 0);
+    },0);
+    while(cur <= end && labels.length<36){
+      const cutoff = new Date(cur.getFullYear(), cur.getMonth()+1, 0).toISOString().slice(0,10);
+      const av = sumAt(assets, cutoff), dv = sumAt(debts, cutoff);
+      aPts.push(av); dPts.push(dv); nPts.push(av-dv);
+      labels.push(MONTHS_S[cur.getMonth()]+" "+String(cur.getFullYear()).slice(2));
+      cur.setMonth(cur.getMonth()+1);
+    }
+    if(labels.length===1){ aPts.push(aPts[0]); dPts.push(dPts[0]); nPts.push(nPts[0]); labels.push("danas"); }
+    const series = [{name:"Imovina", color:"var(--s2)", vals:aPts}];
+    if(debts.length) series.push({name:"Obaveze", color:"var(--s6)", vals:dPts});
+    series.push({name:"Neto vrednost", color:"var(--s1)", vals:nPts});
+    renderLines("chartAssets", labels, series);
+  }
+
+  const box = document.getElementById("assetTable");
+  if(assets.length===0){ box.innerHTML = `<div class="empty">Nema stavki za ovaj filter — dodaj prvu iznad. 💎</div>`; return; }
+  let html = `<table><thead><tr><th>Naziv</th><th>Vrsta</th><th>Vlasnik</th><th class="num">Prva procena</th><th class="num">Trenutno</th><th class="num">Promena</th><th></th></tr></thead><tbody>`;
+  assets.forEach(a=>{
+    const fst = a.entries[0], lst = a.entries[a.entries.length-1];
+    const d = lst.value-fst.value;
+    const pct = fst.value>0 ? (100*d/fst.value).toFixed(1) : "0";
+    html += `<tr>
+      <td><b>${escapeHtml(a.name)}</b><div class="note">poslednja procena: ${lst.date.slice(8,10)}.${lst.date.slice(5,7)}.${lst.date.slice(0,4)}.</div></td>
+      <td>${escapeHtml(a.type)}</td>
+      <td>${memberBadge(a.member)}</td>
+      <td class="num">${fmt(fst.value)}</td>
+      <td class="num"><b>${fmt(lst.value)}</b></td>
+      <td class="num" style="color:${d>=0?"var(--good-text)":"var(--crit)"};font-weight:600">${d>=0?"+":""}${fmt(d)} (${d>=0?"+":""}${pct}%)</td>
+      <td style="white-space:nowrap">
+        <button class="btn ghost sm" data-reval="${a.id}">Ažuriraj</button>
+        <button class="del" title="Obriši" data-adel="${a.id}">✕</button>
+      </td>
+    </tr>`;
+  });
+  html += `</tbody></table>`;
+  box.innerHTML = html;
+  box.querySelectorAll("[data-reval]").forEach(b=>b.addEventListener("click",()=>{
+    const a = state.assets.find(x=>x.id===b.dataset.reval);
+    const inp = prompt(`Nova vrednost za „${a.name}" (${state.currency}):`, a.entries[a.entries.length-1].value);
+    if(inp===null) return;
+    const v = parseFloat(String(inp).replace(",", "."));
+    if(!(v>=0)){ alert("Neispravan iznos."); return; }
+    a.entries.push({date: new Date().toISOString().slice(0,10), value: v});
+    a.entries.sort((x,y)=>x.date.localeCompare(y.date));
+    save(); renderAll();
+  }));
+  box.querySelectorAll("[data-adel]").forEach(b=>b.addEventListener("click",()=>{
+    if(confirm("Obrisati ovu stavku imovine i njenu istoriju?")){
+      state.assets = state.assets.filter(x=>x.id!==b.dataset.adel);
+      save(); renderAll();
+    }
+  }));
+
+  /* tabela obaveza */
+  const dbox = document.getElementById("debtTable");
+  if(debts.length===0){ dbox.innerHTML = `<div class="empty">Nema unetih obaveza — ako nemate kredita, neto vrednost je jednaka imovini. 🎉</div>`; }
+  else{
+    let dhtml = `<table><thead><tr><th>Naziv</th><th>Vrsta</th><th>Čija</th><th class="num">Mesečna rata</th><th class="num">Početni dug</th><th class="num">Preostalo</th><th class="num">Otplaćeno</th><th></th></tr></thead><tbody>`;
+    debts.forEach(d=>{
+      const fst = d.entries[0], lst = d.entries[d.entries.length-1];
+      const paid = fst.value - lst.value;
+      dhtml += `<tr>
+        <td><b>${escapeHtml(d.name)}</b><div class="note">stanje: ${lst.date.slice(8,10)}.${lst.date.slice(5,7)}.${lst.date.slice(0,4)}.</div></td>
+        <td>${escapeHtml(d.type)}</td>
+        <td>${memberBadge(d.member)}</td>
+        <td class="num">${d.rate>0?fmt(d.rate):"—"}</td>
+        <td class="num">${fmt(fst.value)}</td>
+        <td class="num" style="font-weight:700;color:var(--crit)">${fmt(lst.value)}</td>
+        <td class="num" style="color:${paid>0?"var(--good-text)":"var(--ink-2)"};font-weight:600">${paid>0?"✅ "+fmt(paid):"—"}</td>
+        <td style="white-space:nowrap">
+          <button class="btn ghost sm" data-dreval="${d.id}">Ažuriraj</button>
+          <button class="del" title="Obriši" data-ddel="${d.id}">✕</button>
+        </td>
+      </tr>`;
+    });
+    dhtml += `</tbody></table>`;
+    dbox.innerHTML = dhtml;
+    dbox.querySelectorAll("[data-dreval]").forEach(b=>b.addEventListener("click",()=>{
+      const d = state.debts.find(x=>x.id===b.dataset.dreval);
+      const inp = prompt(`Novo stanje duga za „${d.name}" (${state.currency}):`, lastVal(d));
+      if(inp===null) return;
+      const v = parseFloat(String(inp).replace(",", "."));
+      if(!(v>=0)){ alert("Neispravan iznos."); return; }
+      d.entries.push({date: new Date().toISOString().slice(0,10), value: v});
+      d.entries.sort((x,y)=>x.date.localeCompare(y.date));
+      save(); renderAll();
+    }));
+    dbox.querySelectorAll("[data-ddel]").forEach(b=>b.addEventListener("click",()=>{
+      if(confirm("Obrisati ovu obavezu i njenu istoriju? (Uradi to tek kad je kredit stvarno otplaćen ili je unos greška.)")){
+        state.debts = state.debts.filter(x=>x.id!==b.dataset.ddel);
+        save(); renderAll();
+      }
+    }));
+  }
+}
+
+/* ============ Krediti ============ */
+const CRED_FIELDS = ["crIncM","crIncZ","crOblig","crDti","crApr","crYears","crDown"];
+/* Okvirni proseci za Srbiju (jul 2026) — uvek proveri aktuelnu ponudu banke i NBS statistiku */
+const LOAN_PRESETS = {
+  stambeni:   {apr:5.5,  years:30, label:"Stambeni",   note:"EUR-indeksirani, tipično ~5–6% efektivno, po zakonu maksimalno 30 god. Smernica: rata ≤ 28% prihoda."},
+  potrosacki: {apr:9.9,  years:6,  label:"Potrošački", note:"tipično ~9–11% efektivno, do 7–8 god."},
+  kes:        {apr:11.9, years:5,  label:"Keš",        note:"dinarski, tipično ~10–13% efektivno, do 5–7 god."}
+};
+function applyLoanPreset(key, overwrite){
+  const p = LOAN_PRESETS[key];
+  if(!p) return;
+  if(overwrite){
+    document.getElementById("crApr").value = p.apr;
+    document.getElementById("crYears").value = p.years;
+  }
+  document.querySelectorAll("#loanSeg button").forEach(b=>b.classList.toggle("active", b.dataset.l===key));
+  document.getElementById("loanNote").innerHTML =
+    `<b>${p.label} kredit</b> — ${p.note} Ubačena je okvirna prosečna kamata za Srbiju (jul 2026); ` +
+    `aplikacija radi bez interneta pa ne može sama da povlači aktuelne kamate — <b>prekucaj kamatu i rok prema konkretnoj ponudi</b> (NBS objavljuje prosek na nbs.rs).`;
+}
+document.querySelectorAll("#loanSeg button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    applyLoanPreset(b.dataset.l, true);
+    state.credit = state.credit || {};
+    state.credit.loanType = b.dataset.l;
+    CRED_FIELDS.forEach(f=>{ state.credit[f] = parseFloat(document.getElementById(f).value)||0; });
+    save(); renderCredit();
+  });
+});
+function avgIncomeOf(member){
+  const tx = txOfYear().filter(t=>t.type==="prihod" && (member==="oba" ? t.member!=="zajedno" : t.member===member));
+  const now = new Date();
+  const lastM = (state.year == now.getFullYear()) ? now.getMonth() : 11;
+  const ms = new Set(tx.map(monthOf));
+  const used = [...ms].filter(m=>m<=lastM);
+  if(used.length===0) return 0;
+  return tx.filter(t=>monthOf(t)<=lastM).reduce((s,t)=>s+t.amount,0)/used.length;
+}
+function initCreditInputs(){
+  if(state.credit){
+    CRED_FIELDS.forEach(id=>{ if(state.credit[id]!==undefined) document.getElementById(id).value = state.credit[id]; });
+  }
+  /* ako prihodi nisu uneti, predloži prosek iz podataka */
+  if(!(parseFloat(document.getElementById("crIncM").value)>0)){
+    const m = Math.round(avgIncomeOf("muz"));
+    if(m>0) document.getElementById("crIncM").value = m;
+  }
+  if(!(parseFloat(document.getElementById("crIncZ").value)>0)){
+    const z = Math.round(avgIncomeOf("zena"));
+    if(z>0) document.getElementById("crIncZ").value = z;
+  }
+  /* vrsta kredita: sačuvana ili podrazumevano stambeni (bez prepisivanja unetih vrednosti) */
+  applyLoanPreset((state.credit && state.credit.loanType) || "stambeni", !state.credit);
+}
+function renderCredit(){
+  document.getElementById("crIncMLbl").textContent = `Neto prihod — ${state.names.muz} (mesečno)`;
+  document.getElementById("crIncZLbl").textContent = `Neto prihod — ${state.names.zena} (mesečno)`;
+  const v = {};
+  CRED_FIELDS.forEach(id=>{ v[id] = parseFloat(document.getElementById(id).value)||0; });
+  const r = v.crApr/100/12, n = Math.max(1, Math.round(v.crYears*12));
+  const maxLoanFor = (income)=>{
+    const maxRate = Math.max(0, income*v.crDti/100 - v.crOblig);
+    const principal = r>0 ? maxRate*(1-Math.pow(1+r,-n))/r : maxRate*n;
+    return {maxRate, principal};
+  };
+  const scenarios = [
+    {name:`👤 Samo ${state.names.muz}`, income:v.crIncM},
+    {name:`👤 Samo ${state.names.zena}`, income:v.crIncZ},
+    {name:"🤝 Zajedno", income:v.crIncM+v.crIncZ}
+  ];
+  document.getElementById("credResults").innerHTML = scenarios.map(s=>{
+    const {maxRate, principal} = maxLoanFor(s.income);
+    return `<div class="cred">
+      <h3>${escapeHtml(s.name)}</h3>
+      <div class="rrow"><span>Neto prihod</span><b>${fmt(s.income)}</b></div>
+      <div class="rrow"><span>Maks. rata (${v.crDti}% − obaveze)</span><b>${fmt(maxRate)}</b></div>
+      <div class="rrow"><span>Maks. kredit (${v.crYears} god, ${v.crApr}%)</span><b>${fmt(principal)}</b></div>
+      <div class="rrow" style="border-top:1px solid var(--grid); margin-top:6px; padding-top:8px"><span>+ učešće</span><b>${fmt(v.crDown)}</b></div>
+      <div class="big">${fmt(principal+v.crDown)}</div>
+      <div class="note">ukupan budžet za kupovinu</div>
+    </div>`;
+  }).join("");
+}
+CRED_FIELDS.forEach(id=>document.getElementById(id).addEventListener("input", ()=>{
+  state.credit = state.credit || {};
+  CRED_FIELDS.forEach(f=>{ state.credit[f] = parseFloat(document.getElementById(f).value)||0; });
+  save();
+  renderCredit();
+}));
+
+/* ============ Auto kalkulator ============ */
+const CAR_FIELDS = ["cPrice","cDown","cApr","cTerm","cIns","cFuel","cMaint","cIncome"];
+function renderCar(){
+  const v = {};
+  CAR_FIELDS.forEach(id=>{ v[id] = parseFloat(document.getElementById(id).value)||0; });
+  state.car = v; save();
+  const principal = Math.max(0, v.cPrice - v.cDown);
+  const n = Math.max(1, Math.round(v.cTerm));
+  const r = v.cApr/100/12;
+  const payment = r>0 ? principal*r/(1-Math.pow(1+r,-n)) : principal/n;
+  const monthlyTotal = payment + v.cIns + v.cFuel + v.cMaint;
+  const totalInterest = payment*n - principal;
+  const trueCost = v.cPrice + totalInterest + (v.cIns+v.cFuel+v.cMaint)*n;
+  const pct = v.cIncome>0 ? 100*monthlyTotal/v.cIncome : 0;
+  const neededIncome = monthlyTotal/0.15;
+  let cls="ok", icon="✅", label="Komforno — staje u budžet";
+  if(pct>20){ cls="risk"; icon="⛔"; label="Rizično — preskupo za tvoj prihod"; }
+  else if(pct>15){ cls="stretch"; icon="⚠️"; label="Napeto — preko pravila 15%"; }
+  document.getElementById("carVerdict").innerHTML = v.cIncome>0
+    ? `<div class="verdict ${cls}"><span>${icon}</span><span>${label}</span><span class="pct">${pct.toFixed(1)}%</span></div>`
+    : `<div class="verdict stretch"><span>ℹ️</span><span>Unesi mesečni prihod za ocenu priuštivosti</span></div>`;
+  document.getElementById("carResults").innerHTML = `
+    <div class="result-row"><span>Iznos kredita</span><b>${fmt(principal)}</b></div>
+    <div class="result-row"><span>Mesečna rata</span><b>${fmt(payment)}</b></div>
+    <div class="result-row"><span>Ukupan mesečni trošak auta</span><b>${fmt(monthlyTotal)}</b></div>
+    <div class="result-row"><span>Udeo u prihodu</span><b>${v.cIncome>0?pct.toFixed(1)+"%":"—"}</b></div>
+    <div class="result-row"><span>Ukupna kamata (${n} meseci)</span><b>${fmt(totalInterest)}</b></div>
+    <div class="result-row"><span>Stvarni ukupan trošak vozila</span><b>${fmt(trueCost)}</b></div>
+    <div class="result-row"><span>Potreban prihod za pravilo 15%</span><b>${fmt(neededIncome)}</b></div>`;
+}
+CAR_FIELDS.forEach(id=>document.getElementById(id).addEventListener("input", renderCar));
+
+/* ============ Skeniranje fiskalnog računa (QR) ============ */
+let pendingScanLink = null;
+function b64uToBytes(s){
+  s = String(s).replace(/-/g,"+").replace(/_/g,"/").replace(/\s/g,"");
+  while(s.length % 4) s += "=";
+  const bin = atob(s);
+  const b = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) b[i] = bin.charCodeAt(i);
+  return b;
+}
+/* Iz verifikacionog URL-a (suf.purs.gov.rs) čita iznos i datum.
+   Raspored polja po TaxCore specifikaciji: verzija(1) + kasa(8) + potpisnik(8)
+   + brojači(4+4) + IZNOS (8B LE, u 1/10000) + DATUM (8B LE, unix ms).
+   Ako dekodirane vrednosti nisu razumne, vraćamo samo link — korisnik unosi ručno. */
+function decodeFiscalUrl(raw){
+  try{
+    const u = new URL(String(raw).trim());
+    if(!/suf\.purs\.gov\.rs$/i.test(u.hostname)) return null;
+    const vl = u.searchParams.get("vl");
+    const res = {url: u.href};
+    if(!vl) return res;
+    const b = b64uToBytes(vl);
+    if(b.length < 41) return res;
+    const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    const amount = Number(dv.getBigUint64(25, true)) / 10000;
+    const ts = Number(dv.getBigUint64(33, true));
+    const d = new Date(ts);
+    if(amount > 0 && amount < 100000000 && d.getFullYear() >= 2021 && d.getFullYear() <= 2035){
+      res.amount = Math.round(amount*100)/100;
+      res.date = new Date(ts - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    }
+    return res;
+  }catch(e){ return null; }
+}
+function applyScan(res){
+  const panel = document.getElementById("scanPanel");
+  if(!res){
+    panel.innerHTML = `<div class="callout" style="border-left-color:var(--crit)">QR/link nije prepoznat kao fiskalni račun (suf.purs.gov.rs). Pokušaj ponovo ili unesi ručno.</div>`;
+    return;
+  }
+  pendingScanLink = res.url;
+  document.getElementById("txType").value = "rashod";
+  updateEntryCard(); fillCatSelect();
+  if(res.date) document.getElementById("txDate").value = res.date;
+  if(res.amount) document.getElementById("txAmount").value = res.amount;
+  if(!document.getElementById("txNote").value) document.getElementById("txNote").value = "Fiskalni račun";
+  panel.innerHTML = `<div class="callout" style="border-left-color:var(--good)">
+    ✅ Račun učitan${res.amount?`: <b>${fmt(res.amount)}</b>`:""}${res.date?`, ${res.date.slice(8,10)}.${res.date.slice(5,7)}.${res.date.slice(0,4)}.`:""}
+    ${res.amount?"— proveri iznos, izaberi <b>kategoriju</b> i klikni Dodaj.":"— iznos upiši ručno (nije mogao da se pročita iz QR-a), a <a href='"+res.url+"' target='_blank' rel='noopener'>ceo račun pogledaj ovde</a>."}
+    Uz transakciju se čuva 🔗 link ka računu.
+  </div>`;
+  document.getElementById("txAmount").focus();
+}
+function stopCam(){
+  const v = document.getElementById("camVideo");
+  if(v.srcObject){ v.srcObject.getTracks().forEach(t=>t.stop()); v.srcObject = null; }
+  if(window.__camTimer){ clearInterval(window.__camTimer); window.__camTimer = null; }
+  document.getElementById("camModal").style.display = "none";
+}
+document.getElementById("btnCamStop").addEventListener("click", stopCam);
+document.getElementById("btnScanCam").addEventListener("click", async ()=>{
+  const panel = document.getElementById("scanPanel");
+  if(!("BarcodeDetector" in window)){
+    panel.innerHTML = `<div class="callout">📱 Ovaj browser nema ugrađen čitač QR kodova (npr. iPhone/Safari). Uradi ovako: skeniraj QR <b>običnom kamerom telefona</b>, kopiraj link koji iskoči i klikni „🔗 Nalepi link računa".</div>`;
+    return;
+  }
+  if(!window.isSecureContext){
+    panel.innerHTML = `<div class="callout">🔒 Kamera radi samo preko https ili localhost. Koristi „🖼️ QR iz slike" ili „🔗 Nalepi link".</div>`;
+    return;
+  }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    const video = document.getElementById("camVideo");
+    video.srcObject = stream;
+    document.getElementById("camModal").style.display = "flex";
+    const det = new BarcodeDetector({formats:["qr_code"]});
+    window.__camTimer = setInterval(async ()=>{
+      try{
+        const codes = await det.detect(video);
+        if(codes.length){
+          const raw = codes[0].rawValue;
+          stopCam();
+          applyScan(decodeFiscalUrl(raw));
+        }
+      }catch(err){}
+    }, 350);
+  }catch(err){
+    panel.innerHTML = `<div class="callout" style="border-left-color:var(--crit)">Kamera nije dostupna (${escapeHtml(err.name||"greška")}). Koristi „🖼️ QR iz slike" ili „🔗 Nalepi link".</div>`;
+  }
+});
+document.getElementById("btnScanImg").addEventListener("click", ()=>{
+  if(!("BarcodeDetector" in window)){
+    document.getElementById("scanPanel").innerHTML = `<div class="callout">Ovaj browser ne ume da čita QR iz slike — koristi „🔗 Nalepi link računa".</div>`;
+    return;
+  }
+  document.getElementById("scanImgFile").click();
+});
+document.getElementById("scanImgFile").addEventListener("change", async e=>{
+  const f = e.target.files[0]; if(!f) return;
+  try{
+    const bmp = await createImageBitmap(f);
+    const det = new BarcodeDetector({formats:["qr_code"]});
+    const codes = await det.detect(bmp);
+    if(codes.length) applyScan(decodeFiscalUrl(codes[0].rawValue));
+    else document.getElementById("scanPanel").innerHTML = `<div class="callout" style="border-left-color:var(--crit)">Na slici nije pronađen QR kod — slikaj bliže i oštrije.</div>`;
+  }catch(err){
+    document.getElementById("scanPanel").innerHTML = `<div class="callout" style="border-left-color:var(--crit)">Slika nije mogla da se obradi.</div>`;
+  }
+  e.target.value = "";
+});
+document.getElementById("btnScanLink").addEventListener("click", ()=>{
+  document.getElementById("scanPanel").innerHTML = `
+    <div class="settings-row" style="margin-bottom:0">
+      <div style="flex:1; min-width:240px">
+        <label for="scanUrl">Link sa računa (suf.purs.gov.rs/…)</label>
+        <input type="url" id="scanUrl" placeholder="https://suf.purs.gov.rs/v/?vl=...">
+      </div>
+      <button class="btn sm" type="button" id="btnScanUrlGo">Učitaj</button>
+    </div>
+    <p class="note" style="margin-top:6px">iPhone: skeniraj QR običnom kamerom → drži prst na linku → Kopiraj → nalepi ovde.</p>`;
+  document.getElementById("btnScanUrlGo").addEventListener("click", ()=>{
+    applyScan(decodeFiscalUrl(document.getElementById("scanUrl").value));
+  });
+  document.getElementById("scanUrl").focus();
+});
+
+/* ============ CSV uvoz izvoda ============ */
+let csvJob = null;
+const CSV_RULES = [
+  {re:/eps|elektrodistribucij|elektroprivred|struja/i,                          cat:"racuni"},
+  {re:/infostan|komunalij|vodovod|toplan|grejanj|gradska čistoća|cistoca/i,     cat:"racuni"},
+  {re:/telekom|mts|yettel|telenor|a1 |a1-|sbb|supernova|orion|net tv/i,         cat:"racuni"},
+  {re:/nis |nis-|nis p|gazprom|omv|mol |lukoil|eko |shell|petrol|benzin|gorivo/i, cat:"vozilo"},
+  {re:/registracij|tehnički pregled|tehnicki pregled|autoservis|vulkanizer|parking servis/i, cat:"vozilo"},
+  {re:/maxi|lidl|idea |idea-|roda|univerexport|aroma|mercator|tempo|dis |shop&go|market/i, cat:"potrosnja"},
+  {re:/apotek|dm |dm-|lilly|restoran|kafic|kafić|caffe|wolt|glovo|donesi/i,     cat:"potrosnja"},
+  {re:/netflix|spotify|hbo|disney|youtube|deezer|apple\.com|icloud|google one|pretplat/i, cat:"pretplate"},
+  {re:/zara|h&m|c&a|new yorker|sport vision|deichmann|planeta sport|fashion|butik/i, cat:"garderoba"},
+  {re:/kirija|zakup|stanarina/i,                                                cat:"dom"},
+  {re:/rata |kredit|otplat|leasing|lizing/i,                                    cat:"dugovi"},
+  {re:/štednj|stednj|oročen|orocen/i,                                           cat:"stednja"},
+];
+function guessCategory(desc, positive){
+  if(positive){
+    if(/zarad|plata|lični dohodak|licni dohodak|salary/i.test(desc)) return "plata";
+    if(/honorar|ugovor o delu|autorsk/i.test(desc)) return "honorar";
+    return "ostalo";
+  }
+  for(const r of CSV_RULES) if(r.re.test(desc)) return r.cat;
+  return "potrosnja";
+}
+function detectDelim(text){
+  const line = text.split(/\r?\n/).find(l=>l.trim()!=="") || "";
+  let best=";", bestN=-1;
+  [[";",0],[",",0],["\t",0]].forEach(([d])=>{
+    const n = line.split(d).length-1;
+    if(n>bestN){ bestN=n; best=d; }
+  });
+  return best;
+}
+function parseCSVText(text){
+  const delim = detectDelim(text);
+  const rows=[]; let row=[], cell="", inQ=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(inQ){
+      if(ch==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else inQ=false; }
+      else cell+=ch;
+    }else{
+      if(ch==='"') inQ=true;
+      else if(ch===delim){ row.push(cell); cell=""; }
+      else if(ch==='\n'){ row.push(cell); rows.push(row); row=[]; cell=""; }
+      else if(ch!=='\r') cell+=ch;
+    }
+  }
+  if(cell!=="" || row.length){ row.push(cell); rows.push(row); }
+  return rows.filter(r=>r.some(c=>String(c).trim()!==""));
+}
+function parseAmount(s){
+  s = String(s??"").trim().replace(/\s| /g,"").replace(/RSD|EUR|USD|дин\.?|din\.?/gi,"");
+  if(!s) return NaN;
+  const neg = /^-|^\(/.test(s);
+  s = s.replace(/[()+\-]/g,"");
+  const lastDot = s.lastIndexOf("."), lastCom = s.lastIndexOf(",");
+  if(lastCom > lastDot) s = s.replace(/\./g,"").replace(",",".");
+  else s = s.replace(/,/g,"");
+  const v = parseFloat(s);
+  return neg ? -v : v;
+}
+function parseDateAny(s){
+  s = String(s??"").trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`;
+  m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/);
+  if(m) return `${m[3]}-${String(m[2]).padStart(2,"0")}-${String(m[1]).padStart(2,"0")}`;
+  m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{2})\.?$/);
+  if(m) return `20${m[3]}-${String(m[2]).padStart(2,"0")}-${String(m[1]).padStart(2,"0")}`;
+  return null;
+}
+function csvHash(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i))|0; }
+  return Math.abs(h).toString(36);
+}
+function guessCol(headers, res){
+  for(const re of res){
+    const i = headers.findIndex(h=>re.test(h));
+    if(i>=0) return i;
+  }
+  return -1;
+}
+document.getElementById("btnCsv").addEventListener("click", ()=>document.getElementById("csvFile").click());
+document.getElementById("csvFile").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    let text = new TextDecoder("utf-8").decode(reader.result);
+    if(text.includes("�")) text = new TextDecoder("windows-1250").decode(reader.result);
+    const rows = parseCSVText(text);
+    if(rows.length < 2){ alert("Fajl je prazan ili nije prepoznat kao CSV."); e.target.value=""; return; }
+    const headers = rows[0].map(h=>String(h).trim());
+    const map = {
+      date:   guessCol(headers,[/knji[žz]enj/i,/datum/i,/date/i,/valuta/i]),
+      desc:   guessCol(headers,[/opis/i,/svrha/i,/naziv/i,/primalac/i,/korisnik/i,/detalj/i,/description/i]),
+      amount: guessCol(headers,[/^iznos/i,/iznos/i,/amount/i,/promet/i]),
+      credit: guessCol(headers,[/uplat/i,/u korist/i,/potra[žz]/i,/priliv/i,/credit/i]),
+      debit:  guessCol(headers,[/isplat/i,/na teret/i,/dugu/i,/odliv/i,/zadu[žz]/i,/debit/i]),
+    };
+    map.mode = (map.credit>=0 && map.debit>=0 && map.credit!==map.debit) ? "two" : "one";
+    if(map.date<0) map.date = 0;
+    if(map.desc<0) map.desc = Math.min(1, headers.length-1);
+    if(map.mode==="one" && map.amount<0) map.amount = headers.length-1;
+    csvJob = {headers, rows: rows.slice(1), map, preview: []};
+    renderCsvWizard();
+  };
+  reader.readAsArrayBuffer(f);
+  e.target.value = "";
+});
+function csvColSelect(id, sel, allowNone){
+  return `<select data-csvmap="${id}">${allowNone?`<option value="-1">—</option>`:""}${
+    csvJob.headers.map((h,i)=>`<option value="${i}" ${i===sel?"selected":""}>${escapeHtml(h||("kolona "+(i+1)))}</option>`).join("")}</select>`;
+}
+function buildCsvPreview(){
+  const {rows, map} = csvJob;
+  csvJob.preview = [];
+  rows.forEach(cells=>{
+    const date = parseDateAny(cells[map.date]);
+    let amt = NaN;
+    if(map.mode==="one"){ amt = parseAmount(cells[map.amount]); }
+    else{
+      const c = parseAmount(cells[map.credit]), d = parseAmount(cells[map.debit]);
+      if(isFinite(c) && c!==0) amt = Math.abs(c);
+      else if(isFinite(d) && d!==0) amt = -Math.abs(d);
+    }
+    const desc = String(cells[map.desc]??"").trim().replace(/\s+/g," ").slice(0,80);
+    if(!date || !isFinite(amt) || amt===0) return;
+    const positive = amt>0;
+    csvJob.preview.push({
+      include: true, date, desc,
+      amount: Math.abs(amt),
+      type: positive ? "prihod" : "rashod",
+      cat: guessCategory(desc, positive)
+    });
+  });
+}
+function renderCsvWizard(){
+  const box = document.getElementById("csvWizard");
+  if(!csvJob){ box.innerHTML=""; return; }
+  buildCsvPreview();
+  const {map, preview} = csvJob;
+  const skipped = csvJob.rows.length - preview.length;
+  let html = `
+    <div class="callout" style="margin:14px 0">
+      Prepoznato <b>${preview.length}</b> transakcija${skipped>0?` (${skipped} redova preskočeno — bez datuma ili iznosa)`:""}.
+      Ako su kolone pogrešno pogođene, ispravi ih:
+    </div>
+    <div class="settings-row">
+      <div><label>Kolona: datum</label>${csvColSelect("date", map.date)}</div>
+      <div><label>Kolona: opis</label>${csvColSelect("desc", map.desc)}</div>
+      <div><label>Format iznosa</label>
+        <select data-csvmap="mode">
+          <option value="one" ${map.mode==="one"?"selected":""}>Jedna kolona (±)</option>
+          <option value="two" ${map.mode==="two"?"selected":""}>Dve kolone (uplata / isplata)</option>
+        </select>
+      </div>
+      ${map.mode==="one"
+        ? `<div><label>Kolona: iznos</label>${csvColSelect("amount", map.amount)}</div>`
+        : `<div><label>Kolona: uplata</label>${csvColSelect("credit", map.credit)}</div>
+           <div><label>Kolona: isplata</label>${csvColSelect("debit", map.debit)}</div>`}
+    </div>`;
+  if(preview.length){
+    const shown = preview.slice(0,300);
+    html += `<div class="table-scroll" style="max-height:420px; overflow-y:auto; margin-top:6px">
+      <table><thead><tr><th></th><th>Datum</th><th>Opis</th><th class="num">Iznos</th><th>Kategorija</th></tr></thead><tbody>`;
+    shown.forEach((p,i)=>{
+      const cats = p.type==="prihod" ? INC_CATS : EXP_CATS;
+      html += `<tr>
+        <td><input type="checkbox" data-csvinc="${i}" ${p.include?"checked":""}></td>
+        <td style="white-space:nowrap">${p.date.slice(8,10)}.${p.date.slice(5,7)}.${p.date.slice(2,4)}.</td>
+        <td>${escapeHtml(p.desc)||"<span class='note'>—</span>"}</td>
+        <td class="num" style="font-weight:600;${p.type==="prihod"?"color:var(--good-text)":""}">${p.type==="prihod"?"+":"−"}${fmtN(p.amount)}</td>
+        <td><select data-csvcat="${i}">${cats.map(c=>`<option value="${c.id}" ${c.id===p.cat?"selected":""}>${c.name}</option>`).join("")}</select></td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+    if(preview.length>300) html += `<p class="note" style="margin-top:6px">Prikazano prvih 300 — uvoz obuhvata svih ${preview.length}.</p>`;
+    html += `<div class="settings-row" style="margin-top:14px">
+      <button class="btn" id="btnCsvImport">✅ Uvezi ${preview.length} transakcija</button>
+      <button class="btn ghost" id="btnCsvCancel">Otkaži</button>
+    </div>`;
+  }
+  box.innerHTML = html;
+  box.querySelectorAll("[data-csvmap]").forEach(sel=>sel.addEventListener("change",()=>{
+    const k = sel.dataset.csvmap;
+    if(k==="mode") csvJob.map.mode = sel.value; else csvJob.map[k] = parseInt(sel.value,10);
+    renderCsvWizard();
+  }));
+  box.querySelectorAll("[data-csvinc]").forEach(cb=>cb.addEventListener("change",()=>{ csvJob.preview[cb.dataset.csvinc].include = cb.checked; }));
+  box.querySelectorAll("[data-csvcat]").forEach(sel=>sel.addEventListener("change",()=>{ csvJob.preview[sel.dataset.csvcat].cat = sel.value; }));
+  const imp = document.getElementById("btnCsvImport");
+  if(imp) imp.addEventListener("click", importCsv);
+  const cnc = document.getElementById("btnCsvCancel");
+  if(cnc) cnc.addEventListener("click", ()=>{ csvJob=null; renderCsvWizard(); });
+}
+function importCsv(){
+  const member = document.getElementById("csvMember").value;
+  const existing = new Set(state.tx.map(t=>t.id));
+  let added=0, dup=0;
+  csvJob.preview.forEach(p=>{
+    if(!p.include) return;
+    const id = "csv-" + csvHash(p.date+"|"+p.amount+"|"+p.desc);
+    if(existing.has(id)){ dup++; return; }
+    existing.add(id);
+    state.tx.push({
+      id, date:p.date, type:p.type, category:p.cat,
+      member, enteredBy: device||undefined,
+      note:p.desc, amount:p.amount, src:"csv"
+    });
+    added++;
+  });
+  state.tx.sort((a,b)=>a.date.localeCompare(b.date));
+  save();
+  csvJob = null;
+  renderAll();
+  document.getElementById("csvWizard").innerHTML =
+    `<div class="callout" style="border-left-color:var(--good); margin-top:14px">
+      ✅ Uvezeno <b>${added}</b> transakcija${dup>0?`, preskočeno ${dup} duplikata`:""}. Pogledaj 📅 Mesečno i 📊 Pregled.
+    </div>`;
+}
+
+/* ============ Kategorije po želji ============ */
+document.getElementById("catForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const name = document.getElementById("catName").value.trim();
+  const type = document.getElementById("catType").value;
+  if(!name) return;
+  const all = BASE_EXP_CATS.concat(BASE_INC_CATS, state.customCats);
+  if(all.some(c=>c.name.toLowerCase()===name.toLowerCase())){
+    alert("Kategorija sa tim nazivom već postoji."); return;
+  }
+  const slot = ((type==="rashod" ? EXP_CATS.length : INC_CATS.length) % 8) + 1;
+  state.customCats.push({id:"c-"+uid(), name, type, color:`var(--s${slot})`});
+  save();
+  document.getElementById("catForm").reset();
+  renderAll();
+});
+function renderCatList(){
+  const box = document.getElementById("catList");
+  let html = BASE_EXP_CATS.concat(BASE_INC_CATS).map(c=>
+    `<span class="chip" style="cursor:default"><span class="cat-dot" style="background:${c.color}"></span>${c.name}</span>`).join("");
+  html += state.customCats.map(c=>
+    `<span class="chip" style="cursor:default"><span class="cat-dot" style="background:${c.color}"></span>${escapeHtml(c.name)}
+     <span class="note">(${c.type==="prihod"?"prihod":"rashod"})</span>
+     <button class="del" style="font-size:12px;padding:0 2px" title="Obriši kategoriju" data-catdel="${c.id}">✕</button></span>`).join("");
+  box.innerHTML = html;
+  box.querySelectorAll("[data-catdel]").forEach(b=>b.addEventListener("click",()=>{
+    const id = b.dataset.catdel;
+    if(state.tx.some(t=>t.category===id)){
+      alert("Ova kategorija ima transakcije — ne može da se obriše dok one postoje.");
+      return;
+    }
+    state.customCats = state.customCats.filter(c=>c.id!==id);
+    delete state.budgets[id];
+    save(); renderAll();
+  }));
+}
+
+/* ============ Podaci / podešavanja ============ */
+function renderSettings(){
+  renderCatList();
+  document.getElementById("setCurrency").value = state.currency;
+  document.getElementById("setNameM").value = state.names.muz;
+  document.getElementById("setNameZ").value = state.names.zena;
+  const devSel = document.getElementById("setDevice");
+  devSel.options[1].text = state.names.muz;
+  devSel.options[2].text = state.names.zena;
+  devSel.value = device;
+  const ySel = document.getElementById("setYear");
+  const thisY = (new Date()).getFullYear();
+  const years = new Set([thisY-1,thisY,thisY+1, state.year]);
+  state.tx.forEach(t=>years.add(parseInt(t.date.slice(0,4),10)));
+  ySel.innerHTML = [...years].sort().map(y=>`<option value="${y}">${y}.</option>`).join("");
+  ySel.value = state.year;
+  document.getElementById("dataStats").textContent =
+    `Sačuvano: ${state.tx.length} transakcija, ${state.goals.length} ciljeva, ${state.assets.length} stavki imovine, ${state.debts.length} obaveza.`;
+}
+document.getElementById("setCurrency").addEventListener("change", e=>{ state.currency=e.target.value; save(); renderAll(); });
+document.getElementById("setYear").addEventListener("change", e=>{ state.year=parseInt(e.target.value,10); save(); renderAll(); });
+document.getElementById("setNameM").addEventListener("change", e=>{ state.names.muz=e.target.value.trim()||"Muž"; save(); renderAll(); });
+document.getElementById("setNameZ").addEventListener("change", e=>{ state.names.zena=e.target.value.trim()||"Žena"; save(); renderAll(); });
+document.getElementById("setDevice").addEventListener("change", e=>{
+  device = e.target.value;
+  if(device) localStorage.setItem(DEVICE_KEY, device); else localStorage.removeItem(DEVICE_KEY);
+  if(device) document.getElementById("txMember").value = device;
+});
+
+document.getElementById("btnExport").addEventListener("click", ()=>{
+  const blob = new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `moje-finansije-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+});
+document.getElementById("btnImport").addEventListener("click", ()=>document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const s = JSON.parse(reader.result);
+      if(!s || !Array.isArray(s.tx)) throw new Error();
+      localStorage.setItem(STORE_KEY, JSON.stringify(s));
+      state = load(); initInputs(); renderAll();
+      alert("Podaci su uspešno uvezeni. ✅");
+    }catch(err){ alert("Fajl nije prepoznat kao rezerva ove aplikacije."); }
+    e.target.value = "";
+  };
+  reader.readAsText(f);
+});
+/* pametno spajanje dva skupa podataka (bez duplikata, po ID-ju) */
+function mergeStates(cur, inc){
+  const added = {tx:0, goals:0, assets:0};
+  const txIds = new Set(cur.tx.map(t=>t.id));
+  (inc.tx||[]).forEach(t=>{ if(!txIds.has(t.id)){ if(!t.member) t.member="zajedno"; cur.tx.push(t); added.tx++; } });
+  cur.tx.sort((a,b)=>a.date.localeCompare(b.date));
+  const gIds = new Set((cur.goals||[]).map(g=>g.id));
+  (inc.goals||[]).forEach(g=>{ if(!gIds.has(g.id)){ cur.goals.push(g); added.goals++; } });
+  const aMap = {};
+  (cur.assets||[]).forEach(a=>aMap[a.id]=a);
+  (inc.assets||[]).forEach(a=>{
+    if(!aMap[a.id]){ cur.assets.push(a); added.assets++; }
+    else{
+      const dates = new Set(aMap[a.id].entries.map(e=>e.date));
+      (a.entries||[]).forEach(e=>{ if(!dates.has(e.date)) aMap[a.id].entries.push(e); });
+      aMap[a.id].entries.sort((x,y)=>x.date.localeCompare(y.date));
+    }
+  });
+  const dMap = {};
+  (cur.debts||[]).forEach(d=>dMap[d.id]=d);
+  (inc.debts||[]).forEach(d=>{
+    if(!dMap[d.id]){ cur.debts.push(d); }
+    else{
+      const dates = new Set(dMap[d.id].entries.map(e=>e.date));
+      (d.entries||[]).forEach(e=>{ if(!dates.has(e.date)) dMap[d.id].entries.push(e); });
+      dMap[d.id].entries.sort((x,y)=>x.date.localeCompare(y.date));
+    }
+  });
+  Object.entries(inc.budgets||{}).forEach(([k,v])=>{ if(!cur.budgets[k]) cur.budgets[k]=v; });
+  const cIds = new Set((cur.customCats||[]).map(c=>c.id));
+  (inc.customCats||[]).forEach(c=>{ if(!cIds.has(c.id)) cur.customCats.push(c); });
+  return added;
+}
+document.getElementById("btnMerge").addEventListener("click", ()=>document.getElementById("mergeFile").click());
+document.getElementById("mergeFile").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const inc = JSON.parse(reader.result);
+      if(!inc || !Array.isArray(inc.tx)) throw new Error();
+      const added = mergeStates(state, inc);
+      save(); renderAll();
+      alert(`Spojeno bez duplikata. ✅\nDodato: ${added.tx} transakcija, ${added.goals} ciljeva, ${added.assets} stavki imovine.`);
+    }catch(err){ alert("Fajl nije prepoznat kao rezerva ove aplikacije."); }
+    e.target.value = "";
+  };
+  reader.readAsText(f);
+});
+document.getElementById("btnWipe").addEventListener("click", ()=>{
+  if(confirm("Obrisati SVE podatke (transakcije, ciljeve, imovinu, podešavanja)? Ovo se ne može poništiti.")){
+    localStorage.removeItem(STORE_KEY);
+    state = load(); initInputs(); renderAll();
+  }
+});
+
+/* ============ Init ============ */
+function initInputs(){
+  if(state.car) CAR_FIELDS.forEach(id=>{ if(state.car[id]!==undefined) document.getElementById(id).value = state.car[id]; });
+  initCreditInputs();
+  setAssetDateDefault();
+  initQuickChips();
+  initGoalChips();
+  if(device){ fillMemberSelects(); document.getElementById("txMember").value = device; }
+}
+function renderAll(){
+  rebuildCats();
+  renderFilterBar();
+  fillMemberSelects();
+  fillCatSelect();
+  updateEntryCard();
+  renderDash(); renderMonth(); renderGoals(); renderProj();
+  renderAssets(); renderCredit(); renderCar(); renderSettings();
+}
+initInputs();
+renderAll();
+window.addEventListener("resize", hideTip);
+/* PWA: service worker (samo na https/localhost — omogućava rad offline i instalaciju na telefon) */
+if("serviceWorker" in navigator && (location.protocol==="https:" || ["localhost","127.0.0.1"].includes(location.hostname))){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
+</html>
