@@ -176,6 +176,13 @@ input:focus,select:focus{outline:none; border-color:var(--ring); box-shadow:0 0 
 .g-status.neutral{color:var(--ink-2);}
 .g-foot{display:flex; justify-content:space-between; align-items:center; margin-top:10px;}
 
+.donut-wrap{display:flex; gap:24px; align-items:center; flex-wrap:wrap;}
+.donut-wrap svg{flex:0 0 auto;}
+.donut-legend{display:grid; gap:7px; font-size:13px; min-width:220px; flex:1;}
+.dl-row{display:flex; align-items:center; gap:8px;}
+.dl-row .dl-name{color:var(--ink-2); font-weight:600;}
+.dl-row .dl-val{margin-left:auto; font-variant-numeric:tabular-nums; font-weight:600;}
+.dl-row .dl-pct{color:var(--muted); font-size:12px; width:44px; text-align:right; font-variant-numeric:tabular-nums;}
 .budget-bar{height:8px; border-radius:99px; background:var(--grid); overflow:hidden; min-width:90px;}
 .budget-bar > div{height:100%; border-radius:99px;}
 .b-in{background:var(--s1);}
@@ -308,6 +315,12 @@ input.mini{width:110px; padding:5px 8px; font-size:13px; text-align:right;}
   </div>
 
   <div class="card">
+    <h2>🍩 Struktura rashoda</h2>
+    <div class="desc">Gde odlazi novac — udeo svake kategorije u ukupnim rashodima za <span class="yearLbl"></span>. godinu</div>
+    <div id="donutYear"></div>
+  </div>
+
+  <div class="card">
     <h2>Rashodi po kategorijama</h2>
     <div class="desc">Ukupno za celu godinu</div>
     <div class="chart-wrap" id="chartCats"></div>
@@ -401,6 +414,10 @@ input.mini{width:110px; padding:5px 8px; font-size:13px; text-align:right;}
       <label for="txGoal">Uplata za cilj (opciono)</label>
       <select id="txGoal"></select>
     </div>
+    <div style="margin-top:10px; max-width:340px;">
+      <label for="txWarranty">🛡️ Garancija do (opciono — uređaji, satovi, tehnika)</label>
+      <input type="date" id="txWarranty">
+    </div>
   </div>
 
   <div class="card">
@@ -447,14 +464,28 @@ input.mini{width:110px; padding:5px 8px; font-size:13px; text-align:right;}
     <div class="desc">
       Aplikacija sama računa tvoj prosek iz prethodnih meseci i poredi sa tekućom potrošnjom (cela porodica).
       Plan je opcioni — upiši svoj ili <button type="button" class="btn ghost sm" id="btnSuggestBudget">🪄 Predloži plan (50/30/20)</button>
+      <button type="button" class="btn ghost sm" id="btnRollover"></button>
     </div>
     <div class="table-scroll" id="budgetTable"></div>
     <div id="budgetPraise"></div>
   </div>
 
   <div class="card">
+    <h2>📉 Tempo potrošnje — <span id="paceLbl"></span></h2>
+    <div class="desc">Kao u Toshl-u: da li trošiš brže nego što mesec prolazi? Kumulativna potrošnja iz dana u dan (bez štednje), naspram ravnomerne linije plana i prošlog meseca.</div>
+    <div class="legend">
+      <span><i style="background:var(--s1)"></i>Ovaj mesec</span>
+      <span><i style="background:var(--s5)"></i>Prošli mesec</span>
+      <span><i style="background:var(--muted)"></i>Plan (ravnomerno)</span>
+    </div>
+    <div class="chart-wrap" id="chartPace"></div>
+    <div id="paceNote"></div>
+  </div>
+
+  <div class="card">
     <h2>Rashodi po kategorijama — <span id="monthCatLbl"></span></h2>
     <div class="desc">Samo izabrani mesec</div>
+    <div id="donutMonth" style="margin-bottom:16px"></div>
     <div class="chart-wrap" id="chartMonthCats"></div>
   </div>
 
@@ -646,6 +677,12 @@ input.mini{width:110px; padding:5px 8px; font-size:13px; text-align:right;}
     <h2>Obaveze — krediti i dugovi</h2>
     <div class="desc">Klikni „Ažuriraj" da upišeš novo (manje) stanje duga posle otplate</div>
     <div class="table-scroll" id="debtTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>🛡️ Garancije</h2>
+    <div class="desc">Kupovine sa upisanim rokom garancije — aplikacija prati koliko je ostalo (kao mani.rs). Rok upišeš pri unosu troška u 📅 Mesečno, a 🔗 vodi do fiskalnog računa za servis ili reklamaciju.</div>
+    <div class="table-scroll" id="warrTable"></div>
   </div>
 
   <div class="card">
@@ -1071,7 +1108,8 @@ function renderLines(containerId, labels, series, tipExtra){
   const n = labels.length;
   const W=940, H=280, mL=76, mR=16, mT=14, mB=30;
   const pw=W-mL-mR, ph=H-mT-mB;
-  const all = series.flatMap(s=>s.vals);
+  const all = series.flatMap(s=>s.vals).filter(v=>v!=null && isFinite(v));
+  if(!all.length) all.push(0);
   const lo = Math.min(0, ...all), hi = Math.max(...all, 1);
   const maxV = niceMax(hi), minV = lo<0 ? -niceMax(-lo) : 0;
   const yOf = v => mT + ph - ph*(v-minV)/(maxV-minV);
@@ -1090,20 +1128,81 @@ function renderLines(containerId, labels, series, tipExtra){
     t.textContent = lb; svg.appendChild(t);
   });
   series.forEach(s=>{
-    const d = s.vals.map((v,i)=>(i===0?"M":"L")+xOf(i)+" "+yOf(v)).join(" ");
-    svg.appendChild(el("path",{d, fill:"none", stroke:s.color, "stroke-width":2, "stroke-linejoin":"round"}));
+    let d = "", pen = false;
+    s.vals.forEach((v,i)=>{
+      if(v==null || !isFinite(v)){ pen = false; return; }
+      d += (pen?"L":"M") + xOf(i) + " " + yOf(v);
+      pen = true;
+    });
+    const p = el("path",{d, fill:"none", stroke:s.color, "stroke-width":2, "stroke-linejoin":"round"});
+    if(s.dash) p.setAttribute("stroke-dasharray","6 5");
+    svg.appendChild(p);
   });
   for(let i=0;i<n;i++){
     series.forEach(s=>{
+      if(s.vals[i]==null || !isFinite(s.vals[i]) || s.noDots) return;
       svg.appendChild(el("circle",{cx:xOf(i),cy:yOf(s.vals[i]),r:3.5,fill:s.color,stroke:"var(--surface-1)","stroke-width":2}));
     });
     const hit = el("rect",{x:xOf(i)-pw/Math.max(1,n-1)/2, y:mT, width:pw/Math.max(1,n-1), height:ph, fill:"transparent"});
     attachTip(hit, ()=>`<div class="t-title">${labels[i]}</div>` +
-      series.map(s=>`<div class="t-row"><span><i style="background:${s.color}"></i>${s.name}</span><b>${fmt(s.vals[i])}</b></div>`).join("") +
+      series.map(s=> (s.vals[i]==null || !isFinite(s.vals[i])) ? "" :
+        `<div class="t-row"><span><i style="background:${s.color}"></i>${s.name}</span><b>${fmt(s.vals[i])}</b></div>`).join("") +
       (tipExtra ? tipExtra(i) : ""));
     svg.appendChild(hit);
   }
   wrap.appendChild(svg);
+}
+
+/* Donut grafikon: rows = [{name,color,v}] */
+function renderDonut(containerId, rows, centerLabel){
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = "";
+  const total = rows.reduce((s,r)=>s+r.v, 0);
+  if(total<=0){ wrap.innerHTML = `<div class="empty">Još nema rashoda za prikaz.</div>`; return; }
+  /* male kriške (<3%) grupišemo u „Ostalo" da grafikon ostane čitljiv */
+  const big = [], small = [];
+  rows.filter(r=>r.v>0).sort((a,b)=>b.v-a.v).forEach(r=>{ (r.v/total>=0.03 ? big : small).push(r); });
+  const slices = big.slice();
+  if(small.length) slices.push({name: small.length===1 ? small[0].name : "Ostalo ("+small.length+")", color:"var(--muted)", v: small.reduce((s,r)=>s+r.v,0)});
+  const size=210, cx=size/2, cy=size/2, R=78, SW=30, GAP=0.035;
+  const svg = el("svg",{viewBox:`0 0 ${size} ${size}`, width:size, height:size, role:"img","aria-label":centerLabel});
+  let a = -Math.PI/2;
+  slices.forEach(s=>{
+    const frac = s.v/total;
+    const a0 = a + GAP/2, a1 = a + frac*2*Math.PI - GAP/2;
+    a += frac*2*Math.PI;
+    if(a1<=a0){ return; }
+    const large = (a1-a0)>Math.PI ? 1 : 0;
+    const p = el("path",{
+      d:`M${cx+R*Math.cos(a0)} ${cy+R*Math.sin(a0)} A${R} ${R} 0 ${large} 1 ${cx+R*Math.cos(a1)} ${cy+R*Math.sin(a1)}`,
+      fill:"none", stroke:s.color, "stroke-width":SW
+    });
+    p.style.cursor = "default";
+    p.addEventListener("mouseenter", ()=>p.setAttribute("stroke-width", SW+6));
+    p.addEventListener("mouseleave", ()=>p.setAttribute("stroke-width", SW));
+    attachTip(p, ()=>`<div class="t-title">${escapeHtml(s.name)}</div>
+      <div class="t-row"><span>Iznos</span><b>${fmt(s.v)}</b></div>
+      <div class="t-row"><span>Udeo</span><b>${(100*s.v/total).toFixed(1)}%</b></div>`);
+    svg.appendChild(p);
+  });
+  const t1 = el("text",{x:cx, y:cy-4, "text-anchor":"middle", fill:"var(--ink)", "font-size":17, "font-weight":700});
+  t1.textContent = fmtN(total);
+  const t2 = el("text",{x:cx, y:cy+15, "text-anchor":"middle", fill:"var(--muted)", "font-size":11});
+  t2.textContent = centerLabel;
+  svg.appendChild(t1); svg.appendChild(t2);
+  const legend = document.createElement("div");
+  legend.className = "donut-legend";
+  legend.innerHTML = slices.map(s=>`
+    <div class="dl-row">
+      <span class="cat-dot" style="background:${s.color}"></span>
+      <span class="dl-name">${escapeHtml(s.name)}</span>
+      <span class="dl-val">${fmt(s.v)}</span>
+      <span class="dl-pct">${(100*s.v/total).toFixed(0)}%</span>
+    </div>`).join("");
+  const flex = document.createElement("div");
+  flex.className = "donut-wrap";
+  flex.appendChild(svg); flex.appendChild(legend);
+  wrap.appendChild(flex);
 }
 
 /* ============ Pregled ============ */
@@ -1194,6 +1293,7 @@ function renderDash(){
   const totals = {};
   tx.filter(t=>t.type==="rashod").forEach(t=>{ totals[t.category]=(totals[t.category]||0)+t.amount; });
   renderCatBars("chartCats", totals);
+  renderDonut("donutYear", EXP_CATS.map(c=>({name:c.name, color:c.color, v: totals[c.id]||0})), "rashodi " + state.year + ".");
   renderBalance();
   renderAnnualTable(tx);
   renderYearsCompare();
@@ -1458,6 +1558,7 @@ document.getElementById("txForm").addEventListener("submit", e=>{
     member: document.getElementById("txMember").value,
     enteredBy: device || undefined,
     link: pendingScanLink || undefined,
+    warranty: document.getElementById("txWarranty").value || undefined,
     note: document.getElementById("txNote").value.trim(),
     goalId: (type==="rashod" && category==="stednja" && goalSel.value) ? goalSel.value : undefined,
     amount
@@ -1468,11 +1569,75 @@ document.getElementById("txForm").addEventListener("submit", e=>{
   document.getElementById("txAmount").value = "";
   document.getElementById("txNote").value = "";
   document.getElementById("txGoal").value = "";
+  document.getElementById("txWarranty").value = "";
   const d = document.getElementById("txDate").value;
   state.selMonth = parseInt(d.slice(5,7),10)-1;
   renderAll();
 });
 
+/* referentni budžet meseca (plan ili prosek, bez štednje) — koristi ga tempo potrošnje i dnevni limit */
+function budgetTotals(m){
+  const tx = txOfYear();
+  const prevMonths = new Set(tx.filter(t=>monthOf(t)<m).map(monthOf));
+  const k = prevMonths.size;
+  const avg = {}, spent = {};
+  tx.forEach(t=>{
+    if(t.type!=="rashod") return;
+    const mm = monthOf(t);
+    if(mm===m) spent[t.category]=(spent[t.category]||0)+t.amount;
+    else if(mm<m && k>0) avg[t.category]=(avg[t.category]||0)+t.amount/k;
+  });
+  let refSum=0, spentSum=0;
+  EXP_CATS.forEach(c=>{
+    if(c.id==="stednja") return;
+    const ref = (state.budgets[c.id]||0)>0 ? state.budgets[c.id] : (avg[c.id]||0);
+    if(ref>0){ refSum+=ref; spentSum+=spent[c.id]||0; }
+  });
+  return {refSum, spentSum};
+}
+function renderPace(m){
+  document.getElementById("paceLbl").textContent = MONTHS[m];
+  const D = new Date(state.year, m+1, 0).getDate();
+  const labels = Array.from({length:D},(_,i)=>String(i+1)+".");
+  const now = new Date();
+  const isCur = state.year==now.getFullYear() && m===now.getMonth();
+  const upTo = isCur ? now.getDate() : D;
+  const dailyCum = mm => {
+    if(mm<0) return null;
+    const tx = txOfYear().filter(t=>t.type==="rashod" && t.category!=="stednja" && monthOf(t)===mm && passFilter(t));
+    if(!tx.length) return null;
+    const per = Array(D).fill(0);
+    tx.forEach(t=>{ per[Math.min(D, parseInt(t.date.slice(8,10),10))-1] += t.amount; });
+    let run=0; return per.map(v=>{ run+=v; return run; });
+  };
+  const cur = dailyCum(m);
+  const prev = dailyCum(m-1);
+  const {refSum} = budgetTotals(m);
+  const series = [];
+  if(cur) series.push({name:"Ovaj mesec", color:"var(--s1)", vals: cur.map((v,i)=> i<upTo ? v : null)});
+  if(prev) series.push({name:"Prošli mesec", color:"var(--s5)", vals: prev, noDots:true});
+  if(refSum>0) series.push({name:"Plan (ravnomerno)", color:"var(--muted)", vals: labels.map((_,i)=>refSum*(i+1)/D), dash:true, noDots:true});
+  const box = document.getElementById("chartPace");
+  const note = document.getElementById("paceNote");
+  if(!series.length){
+    box.innerHTML = `<div class="empty">Unesi troškove da vidiš tempo potrošnje.</div>`;
+    note.innerHTML = ""; return;
+  }
+  renderLines("chartPace", labels, series);
+  if(refSum>0 && isCur){
+    const spent = cur ? cur[upTo-1] : 0;
+    const shouldBe = refSum*upTo/D;
+    const left = refSum - spent;
+    const daysLeft = D - upTo + 1;
+    if(left <= 0){
+      note.innerHTML = `<div class="callout" style="border-left-color:var(--crit)">⛔ Plan za ovaj mesec je već potrošen (<b>${fmt(-left)}</b> preko). Svaki novi trošak jede budžet sledećeg meseca.</div>`;
+    } else if(spent <= shouldBe){
+      note.innerHTML = `<div class="callout" style="border-left-color:var(--good)">✅ Sporiji si od kalendara — potrošeno ${fmtN(spent)} od plana ${fmtN(refSum)}. Ostaje ti <b>${fmt(left)}</b>, tj. <b>${fmt(left/daysLeft)}/dan</b> narednih ${daysLeft} dana.</div>`;
+    } else {
+      note.innerHTML = `<div class="callout" style="border-left-color:var(--warn)">⚠️ Trošiš brže nego što mesec prolazi (${fmtN(spent)} vs ${fmtN(shouldBe)} „po kalendaru"). Da ostaneš u planu: najviše <b>${fmt(left/daysLeft)}/dan</b> narednih ${daysLeft} dana.</div>`;
+    }
+  } else note.innerHTML = "";
+}
 function familyAvgIncome(){
   const tx = txOfYear();
   const now = new Date();
@@ -1489,6 +1654,10 @@ document.getElementById("btnSuggestBudget").addEventListener("click", ()=>{
   Object.entries(shares).forEach(([k,p])=>{ state.budgets[k] = Math.round(income*p/500)*500; });
   save(); renderBudget();
 });
+document.getElementById("btnRollover").addEventListener("click", ()=>{
+  state.budgetRollover = !state.budgetRollover;
+  save(); renderBudget();
+});
 function renderBudget(){
   const m = state.selMonth;
   document.getElementById("budgetLbl").textContent = MONTHS[m];
@@ -1502,7 +1671,13 @@ function renderBudget(){
   const avg = {};
   if(k>0) tx.forEach(t=>{ if(t.type==="rashod" && monthOf(t)<m) avg[t.category]=(avg[t.category]||0)+t.amount/k; });
 
-  let html = `<table><thead><tr><th>Kategorija</th><th class="num">Tvoj prosek/mes</th><th class="num">Plan (opciono)</th><th class="num">Ovaj mesec</th><th>Status</th></tr></thead><tbody>`;
+  /* YNAB „rollover": neiskorišćeni plan iz prethodnih meseci se prenosi */
+  const roll = !!state.budgetRollover;
+  document.getElementById("btnRollover").textContent = roll ? "↪ Prenos: UKLJUČEN" : "↪ Prenos: isključen";
+  const cumSpent = {};
+  if(roll) tx.forEach(t=>{ if(t.type==="rashod" && monthOf(t)<=m) cumSpent[t.category]=(cumSpent[t.category]||0)+t.amount; });
+  let html = roll ? `<p class="note" style="margin-bottom:10px">↪ „Dostupno" = plan × ${m+1} ${m===0?"mesec":(m<4?"meseca":"meseci")} (jan–${MONTHS_S[m].toLowerCase()}) − sve potrošeno do sada. Neiskorišćeno iz prošlih meseci se prenosi, prekoračenja se odbijaju — kao u YNAB-u.</p>` : "";
+  html += `<table><thead><tr><th>Kategorija</th><th class="num">Tvoj prosek/mes</th><th class="num">Plan (opciono)</th><th class="num">Ovaj mesec</th>${roll?`<th class="num">Dostupno ↪</th>`:""}<th>Status</th></tr></thead><tbody>`;
   let refSum=0, spentSum=0, anyRef=false;
   EXP_CATS.forEach(c=>{
     const a = avg[c.id]||0, b = state.budgets[c.id]||0, s = spent[c.id]||0;
@@ -1528,6 +1703,11 @@ function renderBudget(){
       <td class="num">${a>0?fmtN(a):"—"}</td>
       <td class="num"><input class="mini" type="number" min="0" step="100" data-budget="${c.id}" value="${b||""}" placeholder="auto"></td>
       <td class="num" style="font-weight:600">${fmtN(s)}</td>
+      ${roll ? (()=>{
+        if(!(b>0)) return `<td class="num"><span class="note">—</span></td>`;
+        const avail = b*(m+1) - (cumSpent[c.id]||0);
+        return `<td class="num" style="font-weight:700;${avail<0?"color:var(--crit)":"color:var(--good-text)"}">${fmtN(avail)}</td>`;
+      })() : ""}
       <td>${status}</td>
     </tr>`;
   });
@@ -1582,11 +1762,25 @@ function renderMonth(){
     <div class="tile"><div class="label">Prihodi</div><div class="value">${fmt(inc)}</div></div>
     <div class="tile"><div class="label">Rashodi</div><div class="value">${fmt(exp)}</div></div>
     <div class="tile"><div class="label">Bilans meseca</div><div class="value ${inc-exp>=0?"pos":"neg"}">${fmt(inc-exp)}</div></div>
-    <div class="tile"><div class="label">Uplaćeno u štednju</div><div class="value">${fmt(saved)}</div></div>`;
+    <div class="tile"><div class="label">Uplaćeno u štednju</div><div class="value">${fmt(saved)}</div></div>
+    ${(()=>{ /* dnevni limit do kraja meseca (kao Toshl/mani) */
+      const bt = budgetTotals(m);
+      const now = new Date();
+      const isCur = state.year==now.getFullYear() && m===now.getMonth();
+      if(!isCur || bt.refSum<=0) return "";
+      const D = new Date(state.year, m+1, 0).getDate();
+      const daysLeft = D - now.getDate() + 1;
+      const left = bt.refSum - bt.spentSum;
+      return `<div class="tile"><div class="label">💳 Dnevno do kraja meseca</div>
+        <div class="value ${left<0?"neg":"pos"}">${left>0?fmt(left/daysLeft):fmt(0)}</div>
+        <div class="sub">${left>0?`preostalo ${fmtN(left)} · još ${daysLeft} dana`:`plan probijen za ${fmtN(-left)}`}</div></div>`;
+    })()}`;
   renderBudget();
   const totals = {};
   tx.filter(t=>t.type==="rashod").forEach(t=>{ totals[t.category]=(totals[t.category]||0)+t.amount; });
   renderCatBars("chartMonthCats", totals);
+  renderDonut("donutMonth", EXP_CATS.map(c=>({name:c.name, color:c.color, v: totals[c.id]||0})), MONTHS[m].toLowerCase());
+  renderPace(m);
 
   const box = document.getElementById("txTable");
   if(tx.length===0){ box.innerHTML = `<div class="empty">Nema transakcija za ovaj mesec i filter — dodaj prvu iznad. 👆</div>`; return; }
@@ -2071,6 +2265,35 @@ function renderAssets(){
       }
     }));
   }
+}
+
+/* ============ Garancije ============ */
+function renderWarranties(){
+  const box = document.getElementById("warrTable");
+  const rows = state.tx.filter(t=>t.warranty).sort((a,b)=>a.warranty.localeCompare(b.warranty));
+  if(!rows.length){
+    box.innerHTML = `<div class="empty">Pri unosu troška popuni „🛡️ Garancija do" — ovde ćeš pratiti sve rokove na jednom mestu.</div>`;
+    return;
+  }
+  const today = todayISO();
+  let html = `<table><thead><tr><th>Šta</th><th>Kupljeno</th><th>Garancija do</th><th>Status</th></tr></thead><tbody>`;
+  rows.forEach(t=>{
+    const days = Math.round((new Date(t.warranty) - new Date(today)) / 86400000);
+    const st = days < 0
+      ? `<span class="note">istekla</span>`
+      : days <= 30
+        ? `<b style="color:var(--crit)">⚠️ još ${days} ${days===1?"dan":"dana"}</b>`
+        : `<span style="color:var(--good-text);font-weight:600">✅ još ${days} dana</span>`;
+    const link = (t.link && /^https:\/\/suf\.purs\.gov\.rs\//i.test(t.link))
+      ? ` <a href="${escapeHtml(t.link)}" target="_blank" rel="noopener" title="Otvori fiskalni račun">🔗</a>` : "";
+    html += `<tr${days<0?' style="opacity:.55"':''}>
+      <td><b>${escapeHtml(t.note || catById(t.category).name)}</b>${link} <span class="note">${fmtN(t.amount)}</span></td>
+      <td>${t.date.slice(8,10)}.${t.date.slice(5,7)}.${t.date.slice(0,4)}.</td>
+      <td>${t.warranty.slice(8,10)}.${t.warranty.slice(5,7)}.${t.warranty.slice(0,4)}.</td>
+      <td>${st}</td>
+    </tr>`;
+  });
+  box.innerHTML = html + `</tbody></table>`;
 }
 
 /* ============ Krediti ============ */
@@ -2843,7 +3066,7 @@ function renderAll(){
   fillCatSelect();
   updateEntryCard();
   renderDash(); renderMonth(); renderGoals(); renderProj();
-  renderAssets(); renderCredit(); fillPpDebts(); renderPrepay(); renderCar(); renderSettings();
+  renderAssets(); renderWarranties(); renderCredit(); fillPpDebts(); renderPrepay(); renderCar(); renderSettings();
 }
 initInputs();
 renderAll();
