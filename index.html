@@ -38,11 +38,11 @@
 body{
   font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
   background:var(--page); color:var(--ink);
-  min-height:100vh; font-size:15px; line-height:1.45;
+  min-height:100vh; font-size:16px; line-height:1.5;
 }
 header{padding:20px 24px 0; max-width:1100px; margin:0 auto; display:flex; align-items:flex-start; justify-content:space-between; gap:12px;}
 header h1{font-size:22px; font-weight:700; letter-spacing:-0.02em;}
-header p{color:var(--ink-2); font-size:13px; margin-top:2px;}
+header p{color:var(--ink-2); font-size:14px; margin-top:2px;}
 .help-btn{
   flex:0 0 auto; font:inherit; font-size:13px; font-weight:600; cursor:pointer;
   background:var(--surface-1); color:var(--ink-2); border:1px solid var(--border);
@@ -58,16 +58,18 @@ header p{color:var(--ink-2); font-size:13px; margin-top:2px;}
 .modal-bg.open{display:flex;}
 .modal{
   background:var(--surface-1); border:1px solid var(--border); border-radius:16px;
-  max-width:560px; width:100%; max-height:90vh; overflow-y:auto;
-  box-shadow:0 20px 50px rgba(0,0,0,.35); padding:0;
+  max-width:560px; width:100%; max-height:92vh;
+  display:flex; flex-direction:column;
+  box-shadow:0 20px 50px rgba(0,0,0,.35); padding:0; overflow:hidden;
 }
+.modal-scroll{overflow-y:auto; flex:1 1 auto;}
 .modal-head{padding:22px 24px 0;}
 .modal-step-badge{
   display:inline-block; font-size:12px; font-weight:700; color:var(--ink-2);
   background:var(--accent); border-radius:99px; padding:4px 12px; margin-bottom:12px;
 }
 .modal h2{font-size:20px; font-weight:700; letter-spacing:-0.02em; margin-bottom:8px;}
-.modal-body{padding:4px 24px 8px; font-size:14.5px; color:var(--ink-2); line-height:1.6;}
+.modal-body{padding:4px 24px 8px; font-size:15.5px; color:var(--ink-2); line-height:1.6;}
 .modal-body b{color:var(--ink);}
 .modal-body ul{list-style:none; display:grid; gap:10px; margin:12px 0;}
 .modal-body ul li{padding-left:26px; position:relative;}
@@ -82,8 +84,8 @@ header p{color:var(--ink-2); font-size:13px; margin-top:2px;}
 .modal-dots span{width:7px; height:7px; border-radius:99px; background:var(--baseline);}
 .modal-dots span.on{background:var(--primary); width:22px;}
 .modal-foot{
-  display:flex; gap:10px; align-items:center; padding:14px 24px 22px;
-  border-top:1px solid var(--grid); margin-top:12px;
+  display:flex; gap:10px; align-items:center; padding:14px 24px;
+  border-top:1px solid var(--grid); flex:0 0 auto; background:var(--surface-1);
 }
 .modal-foot .spacer{flex:1;}
 .modal-foot .link{
@@ -104,9 +106,9 @@ nav{
   max-width:1100px; margin:16px auto 0; padding:0 24px;
 }
 nav button{
-  font:inherit; font-size:13.5px; font-weight:600;
+  font:inherit; font-size:14.5px; font-weight:600;
   background:none; border:none; color:var(--ink-2);
-  padding:8px 12px; cursor:pointer; border-radius:9px;
+  padding:9px 13px; cursor:pointer; border-radius:9px;
 }
 nav button.active{background:var(--primary); color:var(--primary-fg); box-shadow:var(--shadow);}
 nav button:hover:not(.active){background:var(--accent); color:var(--ink);}
@@ -127,15 +129,15 @@ main{max-width:1100px; margin:0 auto; padding:18px 24px 60px;}
 
 .tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(175px,1fr)); gap:12px; margin-bottom:20px;}
 .tile{background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; box-shadow:var(--shadow);}
-.tile .label{font-size:12px; color:var(--ink-2); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+.tile .label{font-size:12.5px; color:var(--ink-2); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
 .tile .value{font-size:25px; font-weight:700; margin-top:4px;}
-.tile .sub{font-size:12px; color:var(--muted); margin-top:2px;}
+.tile .sub{font-size:12.5px; color:var(--muted); margin-top:2px;}
 .tile .value.pos{color:var(--good-text);}
 .tile .value.neg{color:var(--crit);}
 
 .card{background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:20px; box-shadow:var(--shadow);}
 .card h2{font-size:15px; font-weight:700; margin-bottom:2px;}
-.card .desc{font-size:12.5px; color:var(--ink-2); margin-bottom:14px;}
+.card .desc{font-size:13.5px; color:var(--ink-2); margin-bottom:14px;}
 .legend{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px; font-size:12.5px; color:var(--ink-2);}
 .legend span{display:inline-flex; align-items:center; gap:6px;}
 .legend i{width:10px; height:10px; border-radius:3px; display:inline-block;}
@@ -154,8 +156,8 @@ main{max-width:1100px; margin:0 auto; padding:18px 24px 60px;}
 .tooltip .t-row b{color:var(--ink); font-variant-numeric:tabular-nums;}
 .tooltip .t-row i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:5px;}
 
-table{width:100%; border-collapse:collapse; font-size:13.5px;}
-th{text-align:left; color:var(--ink-2); font-size:12px; text-transform:uppercase; letter-spacing:.03em; padding:8px 10px; border-bottom:1px solid var(--grid);}
+table{width:100%; border-collapse:collapse; font-size:14.5px;}
+th{text-align:left; color:var(--ink-2); font-size:12.5px; text-transform:uppercase; letter-spacing:.03em; padding:8px 10px; border-bottom:1px solid var(--grid);}
 td{padding:8px 10px; border-bottom:1px solid var(--grid); vertical-align:middle;}
 td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
 tr:last-child td{border-bottom:none;}
@@ -199,7 +201,7 @@ input:focus,select:focus{outline:none; border-color:var(--ring); box-shadow:0 0 
   font-size:11px; font-weight:700; border-radius:99px; padding:2px 9px;
   border:1px solid var(--border); color:var(--ink-2); white-space:nowrap;
 }
-.note{font-size:12.5px; color:var(--muted);}
+.note{font-size:13px; color:var(--muted);}
 
 .calc-grid{display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;}
 @media (max-width:860px){ .calc-grid{grid-template-columns:1fr;} }
@@ -293,7 +295,7 @@ input.mini{width:110px; padding:5px 8px; font-size:13px; text-align:right;}
 .proj-controls .pc .val{font-weight:700; font-size:15px; font-variant-numeric:tabular-nums;}
 .callout{
   border-left:3px solid var(--s1); background:var(--page);
-  border-radius:0 8px 8px 0; padding:10px 14px; font-size:13.5px; color:var(--ink-2);
+  border-radius:0 8px 8px 0; padding:11px 15px; font-size:14.5px; color:var(--ink-2);
   margin-top:14px;
 }
 .callout b{color:var(--ink);}
@@ -304,11 +306,16 @@ input.mini{width:110px; padding:5px 8px; font-size:13px; text-align:right;}
 }
 @media (max-width:640px){
   header{padding:14px 14px 0;}
-  header h1{font-size:19px;}
-  nav{padding:0 8px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
-  nav::-webkit-scrollbar{display:none;}
-  nav button{padding:10px 9px; font-size:12.5px; white-space:nowrap;}
-  .filterbar{padding:10px 14px 0;}
+  header h1{font-size:20px;}
+  nav{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:6px;
+    padding:0 12px; border:none;
+  }
+  nav button{
+    padding:9px 4px; font-size:12.5px; white-space:normal; text-align:center;
+    line-height:1.2; min-height:46px; display:flex; align-items:center; justify-content:center;
+  }
+  .filterbar{padding:12px 14px 0;}
   main{padding:14px 12px 60px;}
   .card{padding:14px;}
   .tiles{grid-template-columns:1fr 1fr; gap:8px;}
@@ -1030,13 +1037,15 @@ input.mini{width:110px; padding:5px 8px; font-size:13px; text-align:right;}
 
 <div class="modal-bg" id="guideModal">
   <div class="modal" role="dialog" aria-modal="true">
-    <div class="modal-head">
-      <span class="modal-step-badge" id="gStepBadge"></span>
-      <div class="modal-illus" id="gIllus"></div>
-      <h2 id="gTitle"></h2>
+    <div class="modal-scroll">
+      <div class="modal-head">
+        <span class="modal-step-badge" id="gStepBadge"></span>
+        <div class="modal-illus" id="gIllus"></div>
+        <h2 id="gTitle"></h2>
+      </div>
+      <div class="modal-body" id="gBody"></div>
+      <div class="modal-dots" id="gDots"></div>
     </div>
-    <div class="modal-body" id="gBody"></div>
-    <div class="modal-dots" id="gDots"></div>
     <div class="modal-foot">
       <button class="link" id="gSkip" type="button">Preskoči</button>
       <div class="spacer"></div>
