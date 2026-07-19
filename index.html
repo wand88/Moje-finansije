@@ -801,6 +801,29 @@ input.mini{width:110px; padding:5px 8px; font-size:13px; text-align:right;}
       </div>
     </div>
   </div>
+
+  <div class="card">
+    <h2>⚡ Prevremena otplata auto kredita — šta se više isplati</h2>
+    <div class="desc">
+      Koristi podatke o kreditu iz kalkulatora iznad (iznos = cena − učešće, kamata, rok). Uneseš koliko možeš da uplatiš
+      ekstra, pa vidiš dve opcije: <b>skraćenje roka</b> (najveća ušteda kamate) ili <b>smanjenje rate</b> (mesečno lakše).
+      Na auto kredite važe ista pravila kao na ostale: <b>bez naknade</b> do 1.000.000 RSD prevremene otplate u 12 meseci,
+      preko toga do 1% (0,5% ako je ostalo manje od godinu dana), a kod promenljive stope naknade po pravilu nema.
+    </div>
+    <div class="calc-grid">
+      <div class="fields">
+        <div>
+          <label for="cppOnce">Jednokratna uplata sada</label>
+          <input type="number" id="cppOnce" min="0" step="10000" value="0">
+        </div>
+        <div>
+          <label for="cppExtra">Dodatno svakog meseca</label>
+          <input type="number" id="cppExtra" min="0" step="1000" value="5000">
+        </div>
+      </div>
+      <div id="cppResults"></div>
+    </div>
+  </div>
 </section>
 
 <!-- ===================== PODACI ===================== -->
@@ -2251,8 +2274,61 @@ function renderCar(){
     <div class="result-row"><span>Ukupna kamata (${n} meseci)</span><b>${fmt(totalInterest)}</b></div>
     <div class="result-row"><span>Stvarni ukupan trošak vozila</span><b>${fmt(trueCost)}</b></div>
     <div class="result-row"><span>Potreban prihod za pravilo 15%</span><b>${fmt(neededIncome)}</b></div>`;
+  renderCarPrepay(principal, r, n, payment);
 }
-CAR_FIELDS.forEach(id=>document.getElementById(id).addEventListener("input", renderCar));
+function renderCarPrepay(P, r, n, M){
+  const once = parseFloat(document.getElementById("cppOnce").value)||0;
+  const extra = parseFloat(document.getElementById("cppExtra").value)||0;
+  const box = document.getElementById("cppResults");
+  if(!(P>0)){ box.innerHTML = `<div class="empty">Unesi cenu i učešće iznad da izračunamo prevremenu otplatu.</div>`; return; }
+  const baseInterest = M*n - P;
+  const yrs = m => m>=12 ? `${Math.floor(m/12)} god ${m%12} mes` : `${m} mes`;
+  let html = `
+    <div class="result-row"><span>Iznos kredita</span><b>${fmt(P)}</b></div>
+    <div class="result-row"><span>Mesečna rata</span><b>${fmt(M)}</b></div>
+    <div class="result-row"><span>Kamata do kraja bez izmena</span><b>${fmt(baseInterest)}</b></div>`;
+  if(once<=0 && extra<=0){
+    box.innerHTML = html + `<div class="callout" style="margin-top:12px">Upiši jednokratnu uplatu i/ili dodatni mesečni iznos da vidiš uštede.</div>`;
+    return;
+  }
+  const P2 = Math.max(0, P - once);
+  const payA = M + extra;
+  const nA = P2>0 ? monthsToPayoff(P2, r, payA) : 0;
+  const intA = P2>0 ? payA*nA - P2 : 0;
+  const savedA = baseInterest - intA;
+  const MB = P2>0 ? annuityM(P2, r, n) : 0;
+  const intB = P2>0 ? MB*n - P2 : 0;
+  const savedB = baseInterest - intB;
+  html += `
+    <div class="callout" style="border-left-color:var(--s2); margin-top:12px">
+      <b>Opcija A — skrati rok</b> (rata ${extra>0?`${fmt(payA)} umesto ${fmt(M)}`:`ostaje ${fmt(M)}`}):<br>
+      otplata za <b>${nA===Infinity?"—":yrs(nA)}</b> umesto ${yrs(n)} → <b>kraće za ${nA===Infinity?"—":yrs(n-nA)}</b>,
+      ušteda kamate <b>${fmt(savedA)}</b>
+    </div>
+    <div class="callout" style="border-left-color:var(--s5); margin-top:10px">
+      <b>Opcija B — smanji ratu</b> (rok ostaje ${yrs(n)}):<br>
+      ${once>0
+        ? `nova rata <b>${fmt(MB)}</b> (mesečno lakše za <b>${fmt(M-MB)}</b>), ušteda kamate <b>${fmt(savedB)}</b>${extra>0?` <span class="note">— dodatno mesečno se računa samo u opciji A</span>`:""}`
+        : `<span class="note">za smanjenje rate je potrebna jednokratna uplata — dodatno mesečno prirodno skraćuje rok (opcija A)</span>`}
+    </div>`;
+  if(savedA>0){
+    const diff = savedA - Math.max(0,savedB);
+    html += `<div class="callout" style="border-left-color:var(--good); margin-top:10px">
+      💡 <b>Preporuka:</b> auto kredit je kraći od stambenog, pa je skraćenje roka najbrži način da se rešiš duga —
+      matematički štedi najviše${once>0?` (ovde <b>${fmt(diff)}</b> više nego smanjenje rate)`:""}.
+      Smanjenje rate biraj samo ako ti mesečni budžet treba da odahne.
+    </div>`;
+  }
+  const yearly = once + extra*12;
+  if(yearly > 1000000){
+    html += `<div class="callout" style="border-left-color:var(--warn); margin-top:10px">
+      ⚠️ Planiraš <b>${fmt(yearly)}</b> prevremene otplate za 12 meseci — preko praga od 1.000.000 RSD, pa banka
+      <b>može</b> naplatiti naknadu do 1% (≈ ${fmt(yearly*0.01)}). Rasporedi uplate da u svakih 12 meseci ostaneš ispod praga.
+    </div>`;
+  }
+  box.innerHTML = html;
+}
+CAR_FIELDS.concat(["cppOnce","cppExtra"]).forEach(id=>document.getElementById(id).addEventListener("input", renderCar));
 
 /* ============ Skeniranje fiskalnog računa (QR) ============ */
 let pendingScanLink = null;
