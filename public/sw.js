@@ -1,5 +1,5 @@
 /* Moje finansije — service worker: keš za rad offline */
-const CACHE = "moje-finansije-v1";
+const CACHE = "moje-finansije-v2";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", e => {
