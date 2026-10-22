@@ -3,7 +3,9 @@ import { PREPAY_FEE_FREE_LIMIT, annuity, carAffordability, maxLoanFor, prepay, t
 import { fmt, fmtIn, lastMonthForAvg, lastVal, monthOf, sum, txOfYear } from "../model";
 import { save, state } from "../store";
 import type { CreditState } from "../types";
+import { toast } from "../ui/dialog";
 import { $, escapeHtml, num } from "../ui/dom";
+import { officialRates, refreshRates, renderRatesPanel } from "./rates";
 
 /* ---- kreditna sposobnost ---- */
 const CRED_FIELDS = ["crOblig", "crDti", "crApr", "crMargin", "crFx", "crYears", "crDown"] as const;
@@ -131,9 +133,38 @@ export function initCreditInputs(): void {
   applyLoanPreset(c?.loanType || "stambeni", !c);
 }
 
+/* zvanične stope (ECB/NBS) upisuju se u polja dok ih korisnik ne prekuca; vraća da li je nešto promenjeno */
+function applyOfficialRates(): boolean {
+  const r = officialRates();
+  const c = creditState();
+  if (!r || c.ratesAuto === false) return false;
+  let changed = false;
+  const set = (id: string, v: number) => {
+    const el = $(id);
+    if (document.activeElement === el || parseFloat(el.value) === v) return;
+    el.value = String(v);
+    changed = true;
+  };
+  if (r.euribor6m) {
+    (c.refs ||= {}).EUR = r.euribor6m.value;
+    if (loanCur() === "EUR") set("crRef", r.euribor6m.value);
+  }
+  if (r.eurRsd && home() === "RSD") set("crFx", r.eurRsd.value);
+  if (changed) storeCredit();
+  return changed;
+}
+
 export function renderCredit(): void {
   renderIncomeInputs();
   syncLoanControls();
+  applyOfficialRates();
+  renderRatesPanel({ auto: creditState().ratesAuto !== false, showFx: home() === "RSD", margin: num("crMargin") || 3 });
+  document.getElementById("btnRatesApply")?.addEventListener("click", () => {
+    creditState().ratesAuto = true;
+    renderCredit();
+    toast("Kalkulator ponovo koristi zvanične stope.", "good");
+  });
+  document.getElementById("btnRatesRefresh")?.addEventListener("click", () => refreshRates(renderCredit, true));
   const cur = loanCur(), code = loanCode(), kind = rateKind();
   const fx = cur === "EUR" ? num("crFx") || 1 : 1; /* koliko jedinica domaće valute vredi jedna jedinica valute kredita */
   const ref = num("crRef"), margin = num("crMargin");
@@ -316,6 +347,12 @@ export function initCredit(): void {
     renderCredit();
   }));
   [...CRED_FIELDS, "crRef"].forEach((id) => $(id).addEventListener("input", () => { storeCredit(); renderCredit(); }));
+  /* ručna izmena EURIBOR-a ili kursa isključuje automatske vrednosti (dugme ih vraća) */
+  ["crRef", "crFx"].forEach((id) => $(id).addEventListener("input", () => {
+    if (id === "crRef" && loanCur() !== "EUR") return;
+    creditState().ratesAuto = false;
+    save();
+  }, true));
   $("ppDebt").addEventListener("change", () => {
     const d = state.debts.find((x) => x.id === $("ppDebt").value);
     if (d) $("ppPrincipal").value = String(lastVal(d));
@@ -324,4 +361,10 @@ export function initCredit(): void {
   [...PP_FIELDS, "ppCur"].forEach((id) => $(id).addEventListener("input", renderPrepay));
   $("ppCur").addEventListener("change", renderPrepay);
   CAR_FIELDS.forEach((id) => $(id).addEventListener("input", renderCar));
+}
+
+/* posle prvog iscrtavanja: preuzmi zvanične stope (keš 6 h) i ponovo kad se vrati internet */
+export function startOfficialRates(): void {
+  refreshRates(renderCredit);
+  window.addEventListener("online", () => refreshRates(renderCredit));
 }

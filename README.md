@@ -34,7 +34,10 @@ se pri učitavanju automatski prevodi u novi (`src/lib/migrate.ts`) — postoje�
 
 ## Objavljivanje
 
-Hosting servira **sadržaj `dist/` foldera** posle `npm run build` (npr. Cloudflare Pages: build komanda
-`npm run build`, izlazni folder `dist`). Koren repozitorijuma više nije spreman za direktno serviranje.
-Podaci u localStorage-u su vezani za adresu sajta — pri prelasku na novu adresu prvo izvezi rezervnu kopiju
-(⚙️ Podaci → Izvezi) pa je uvezi na novoj adresi.
+Hosting je **Cloudflare Pages**: servira `dist/` posle `npm run build`, a `functions/api/rates.ts` daje zvanične
+stope (EURIBOR sa ECB-a, srednji kurs NBS, referentna stopa NBS) uz keš od 6 sati. Korak-po-korak prelazak,
+prenos podataka i napomene o licencama izvora: [docs/CLOUDFLARE.md](docs/CLOUDFLARE.md).
+
+```bash
+npm run pages:dev   # build + lokalni Cloudflare sa /api/rates na http://127.0.0.1:8788
+```

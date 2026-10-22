@@ -8,7 +8,7 @@ import { hideTip } from "./ui/charts";
 import { toast } from "./ui/dialog";
 import { initInputs, initNav, renderAll } from "./views/app";
 import { initAssets } from "./views/assets";
-import { initCredit } from "./views/credit";
+import { initCredit, startOfficialRates } from "./views/credit";
 import { initCsv } from "./views/csvImport";
 import { initGoals } from "./views/goals";
 import { initGuide } from "./views/guide";
@@ -35,6 +35,7 @@ initSettings();
 initInputs();
 renderAll();
 initGuide();
+startOfficialRates();
 window.addEventListener("resize", hideTip);
 
 /* PWA: service worker (samo na https/localhost — omogućava rad offline i instalaciju na telefon) */

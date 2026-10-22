@@ -1,0 +1,4 @@
+# Cloudflare Pages — statički sajt iz dist/ + funkcije iz functions/ (npr. /api/rates)
+name = "moje-finansije"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-01"

@@ -87,6 +87,8 @@ export interface CreditState {
   crMargin?: number;
   /* kurs: 1 EUR u valuti domaćinstva */
   crFx?: number;
+  /* EURIBOR i kurs se automatski preuzimaju (ECB/NBS) dok ih korisnik ne prekuca ručno */
+  ratesAuto?: boolean;
   crYears?: number;
   crDown?: number;
 }
