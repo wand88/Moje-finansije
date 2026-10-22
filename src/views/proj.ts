@@ -60,13 +60,13 @@ export function renderProj(): void {
   $("projSummary").innerHTML = avg.k > 0
     ? `Za 12 meseci — osnovni scenario: <b>${fmt(base[11])}</b> ušteđeno. Sa izmenama: <b>${fmt(adj[11])}</b>
        (${diff >= 0 ? "+" : ""}${fmt(diff)}). Mesečni višak: <b>${fmt(baseSurplus)}</b> → <b>${fmt(adjSurplus)}</b>.
-       ${adjSurplus < 0 ? "⚠️ <b>U ovom scenariju trošiš više nego što zarađuješ — svaki mesec ideš u minus.</b>" : ""}`
+       ${adjSurplus < 0 ? "<b>U ovom scenariju trošiš više nego što zarađuješ — svaki mesec ideš u minus.</b>" : ""}`
     : "Unesi bar jedan mesec prihoda i rashoda pa se vrati ovde.";
 
   /* uticaj na ciljeve */
   const active = state.goals.filter((g) => goalSaved(g) < g.target);
   const box = $<HTMLDivElement>("projGoals");
-  if (active.length === 0) { box.innerHTML = `<div class="empty">Nema aktivnih ciljeva. Dodaj ih u tabu 🎯 Ciljevi.</div>`; return; }
+  if (active.length === 0) { box.innerHTML = `<div class="empty">Nema aktivnih ciljeva. Dodaj ih u tabu Ciljevi.</div>`; return; }
   let needTotal = 0;
   let html = `<table><thead><tr><th>Cilj</th><th class="num">Nedostaje</th><th class="num">Rok</th><th class="num">Potrebno mesečno</th></tr></thead><tbody>`;
   active.forEach((g) => {
@@ -76,17 +76,17 @@ export function renderProj(): void {
     needTotal += needed;
     const [dy, dm] = g.deadline.split("-").map(Number);
     html += `<tr><td>${escapeHtml(g.name)}</td><td class="num">${fmt(g.target - saved)}</td>
-      <td class="num">${String(dm).padStart(2, "0")}/${dy}${left <= 0 ? " ⏰" : ""}</td>
+      <td class="num">${String(dm).padStart(2, "0")}/${dy}${left <= 0 ? " (prošao)" : ""}</td>
       <td class="num"><b>${fmt(needed)}</b>${left <= 0 ? " <span class='note'>(odmah)</span>" : ""}</td></tr>`;
   });
   const cover = adjSurplus >= needTotal;
   html += `<tr><td><b>Ukupno potrebno mesečno</b></td><td></td><td></td><td class="num"><b>${fmt(needTotal)}</b></td></tr>`;
   html += `</tbody></table>
-    <div class="callout" style="border-left-color:${cover ? "var(--good)" : "var(--crit)"}">
+    <div class="callout ${avg.k === 0 ? "neutral" : cover ? "good" : "warn"}">
       ${avg.k === 0 ? "Unesi podatke da uporedimo višak sa potrebama ciljeva."
         : cover
-          ? `✅ Projektovani mesečni višak <b>${fmt(adjSurplus)}</b> pokriva sve ciljeve (<b>${fmt(needTotal)}</b>/mes) — ostaje ti <b>${fmt(adjSurplus - needTotal)}</b>/mes slobodno.`
-          : `⚠️ Projektovani mesečni višak <b>${fmt(adjSurplus)}</b> NE pokriva sve ciljeve (<b>${fmt(needTotal)}</b>/mes) — nedostaje <b>${fmt(needTotal - adjSurplus)}</b>/mes. Pomeraj rokove, smanji ciljeve ili potrošnju.`}
+          ? `Projektovani mesečni višak <b>${fmt(adjSurplus)}</b> pokriva sve ciljeve (<b>${fmt(needTotal)}</b>/mes) — ostaje ti <b>${fmt(adjSurplus - needTotal)}</b>/mes slobodno.`
+          : `Projektovani mesečni višak <b>${fmt(adjSurplus)}</b> NE pokriva sve ciljeve (<b>${fmt(needTotal)}</b>/mes) — nedostaje <b>${fmt(needTotal - adjSurplus)}</b>/mes. Pomeraj rokove, smanji ciljeve ili potrošnju.`}
     </div>`;
   box.innerHTML = html;
 }

@@ -2,8 +2,9 @@
 <html lang="sr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#2a78d6">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F3F4F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1115" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Finansije">
@@ -14,22 +15,25 @@
 </head>
 <body>
 
-<header>
-  <div>
-    <h1>💰 Moje finansije</h1>
-    <p data-i18n="header.subtitle">Kućni budžet, ciljevi, imovina i krediti — podaci se čuvaju lokalno na tvom uređaju.</p>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark"><span data-icon="wallet" data-size="20"></span></span>
+    <span>Moje finansije</span>
   </div>
-  <button class="help-btn" id="btnHelp" type="button" data-i18n="header.guide">❓ Vodič</button>
+  <div class="spacer"></div>
+  <button class="iconbtn" id="btnHelp" type="button" aria-label="Vodič kroz aplikaciju" title="Vodič"><span data-icon="help"></span></button>
 </header>
 
-<nav aria-label="Glavni meni">
-  <button type="button" data-view="dash" class="active" data-i18n="nav.dash">📊 Pregled</button>
-  <button type="button" data-view="month" data-i18n="nav.month">📅 Mesečno</button>
-  <button type="button" data-view="goals" data-i18n="nav.goals">🎯 Ciljevi</button>
-  <button type="button" data-view="proj" data-i18n="nav.proj">📈 Projekcija</button>
-  <button type="button" data-view="assets" data-i18n="nav.assets">💎 Imovina</button>
-  <button type="button" data-view="credit" data-i18n="nav.credit">🏦 Krediti i auto</button>
-  <button type="button" data-view="data" data-i18n="nav.data">⚙️ Podaci</button>
+<nav class="tabbar" aria-label="Glavni meni">
+  <button type="button" class="tab active" data-view="dash"><span data-icon="home"></span><span data-i18n="nav.dash">Pregled</span></button>
+  <button type="button" class="tab" data-view="month"><span data-icon="calendar"></span><span data-i18n="nav.month">Mesečno</span></button>
+  <button type="button" class="tab" data-view="goals"><span data-icon="target"></span><span data-i18n="nav.goals">Ciljevi</span></button>
+  <button type="button" class="tab secondary" data-view="proj"><span data-icon="trend"></span><span data-i18n="nav.proj">Projekcija</span></button>
+  <button type="button" class="tab secondary" data-view="assets"><span data-icon="gem"></span><span data-i18n="nav.assets">Imovina</span></button>
+  <button type="button" class="tab secondary" data-view="credit"><span data-icon="bank"></span><span data-i18n="nav.credit">Krediti</span></button>
+  <button type="button" class="tab secondary" data-view="data"><span data-icon="settings"></span><span data-i18n="nav.data">Podaci</span></button>
+  <button type="button" class="tab tab-more" id="btnMore" aria-haspopup="dialog"><span data-icon="more"></span><span data-i18n="nav.more">Više</span></button>
+  <button type="button" class="tab-add" id="btnAdd" aria-label="Novi unos"><span data-icon="plus" data-size="22"></span><span class="lbl" data-i18n="nav.add">Novi unos</span></button>
 </nav>
 
 <div class="filterbar" id="memberFilter" role="group" aria-label="Filter po članu">
@@ -41,12 +45,33 @@
 <!-- ===================== PREGLED ===================== -->
 <section class="view active" id="view-dash">
   <div id="nudgeBanner"></div>
+  <div class="dash-grid">
+    <div>
+      <section class="hero" id="dashHero" aria-label="Izabrani mesec"></section>
+      <div class="card">
+        <div class="card-head"><h2>Poslednje transakcije</h2><button type="button" class="link" data-goto="month">Sve</button></div>
+        <div class="txlist" id="dashRecent"></div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <div class="card-head"><h2>Gde ide novac</h2><span class="note" id="dashSpendLbl"></span></div>
+        <div id="dashSpend"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Ciljevi</h2><button type="button" class="link" data-goto="goals">Svi</button></div>
+        <div id="dashGoals"></div>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section-title">Godina <span class="yearLbl"></span>.</h2>
   <div class="tiles" id="dashTiles"></div>
   <div class="badges" id="dashBadges"></div>
 
   <div class="card">
-    <h2>Po članu porodice — <span class="yearLbl"></span>.</h2>
-    <div class="desc">Posebno za svakog + zajedničko, i automatski ukupan zbir (ne zavisi od filtera gore)</div>
+    <h2>Po članu domaćinstva</h2>
+    <div class="desc">Posebno za svakog + zajedničko, i ukupan zbir (ne zavisi od filtera gore)</div>
     <div class="table-scroll" id="memberTable"></div>
   </div>
 
@@ -54,15 +79,15 @@
     <h2>Prihodi i rashodi po mesecima</h2>
     <div class="desc">Uporedni pregled za <span class="yearLbl"></span>. godinu</div>
     <div class="legend">
-      <span><i style="background:var(--s1)"></i>Prihodi</span>
-      <span><i style="background:var(--s6)"></i>Rashodi</span>
+      <span><i style="background:var(--s3)"></i>Prihodi</span>
+      <span><i style="background:var(--s1)"></i>Rashodi</span>
     </div>
     <div class="chart-wrap" id="chartIncExp"></div>
   </div>
 
   <div class="card">
-    <h2>🍩 Struktura rashoda</h2>
-    <div class="desc">Gde odlazi novac — udeo svake kategorije u ukupnim rashodima za <span class="yearLbl"></span>. godinu</div>
+    <h2>Struktura rashoda</h2>
+    <div class="desc">Udeo svake kategorije u ukupnim rashodima za <span class="yearLbl"></span>. godinu</div>
     <div id="donutYear"></div>
   </div>
 
@@ -85,7 +110,7 @@
   </div>
 
   <div class="card" id="yearsCard" style="display:none">
-    <h2>📆 Poređenje godina i inflacija</h2>
+    <h2>Poređenje godina i inflacija</h2>
     <div class="desc">
       Sve godine koje si vodio, jedna pored druge — nominalno i <b>realno</b> (preračunato u današnje cene preko inflacije).
       Tako vidiš da li stvarno napreduješ ili samo brojke rastu sa cenama.
@@ -95,16 +120,16 @@
 
   <div class="card">
     <details>
-      <summary class="rules-summary"><span class="rules-title">📚 Zlatna pravila kućnog budžeta</span> <span class="note">— klikni da otvoriš</span></summary>
-      <div class="desc" style="margin-top:12px">Opšteprihvaćene smernice — koristi ih uz dugme „Predloži plan" u Mesečnom tabu</div>
+      <summary class="rules-summary"><span data-icon="info"></span><span>Zlatna pravila kućnog budžeta</span> <span class="note">— klikni da otvoriš</span></summary>
+      <div class="desc" style="margin-top:12px">Opšteprihvaćene smernice — koristi ih uz dugme „Predloži plan" u Mesečnom pregledu</div>
       <ul class="rules">
-        <li>📐 <b>50 / 30 / 20:</b> 50% prihoda za potrebe (stan, računi, hrana), 30% za želje, <b>bar 20% za štednju</b>.</li>
-        <li>🏠 <b>Stanovanje ≤ 30%:</b> kirija ili rata + režije zajedno ne bi trebalo da pređu 30% neto prihoda.</li>
-        <li>🚗 <b>Auto ≤ 15%:</b> rata + gorivo + registracija + održavanje (proveri u tabu 🏦 Krediti i auto).</li>
-        <li>🏦 <b>Krediti 28/36:</b> rata stambenog ≤ 28% prihoda, a <b>sve rate zajedno ≤ 36%</b>.</li>
-        <li>👕 <b>Garderoba i luksuz ≤ 5%:</b> satove, nakit i zlato kupuj planski — preko cilja u 🎯, ne iz tekućeg budžeta.</li>
-        <li>🛟 <b>Hitna rezerva:</b> 3–6 mesečnih troškova na strani pre bilo kakvog investiranja.</li>
-        <li>💸 <b>„Prvo plati sebe":</b> štednju izdvoji čim legne plata, ne od onoga što ostane na kraju meseca.</li>
+        <li><b>50 / 30 / 20:</b> 50% prihoda za potrebe (stan, računi, hrana), 30% za želje, <b>bar 20% za štednju</b>.</li>
+        <li><b>Stanovanje ≤ 30%:</b> kirija ili rata + režije zajedno ne bi trebalo da pređu 30% neto prihoda.</li>
+        <li><b>Auto ≤ 15%:</b> rata + gorivo + registracija + održavanje (proveri u Krediti → Priuštivost automobila).</li>
+        <li><b>Krediti 28/36:</b> rata stambenog ≤ 28% prihoda, a <b>sve rate zajedno ≤ 36%</b>.</li>
+        <li><b>Garderoba i luksuz ≤ 5%:</b> satove, nakit i zlato kupuj planski — preko cilja, ne iz tekućeg budžeta.</li>
+        <li><b>Hitna rezerva:</b> 3–6 mesečnih troškova na strani pre bilo kakvog investiranja.</li>
+        <li><b>„Prvo plati sebe":</b> štednju izdvoji čim legne plata, ne od onoga što ostane na kraju meseca.</li>
       </ul>
     </details>
   </div>
@@ -112,64 +137,17 @@
 
 <!-- ===================== MESEČNO ===================== -->
 <section class="view" id="view-month">
-  <div class="months" id="monthBtns"></div>
+  <div class="months" id="monthBtns" role="group" aria-label="Mesec"></div>
 
-  <div class="card entry rashod" id="txCard">
-    <h2 id="txFormTitle">➖ Novi trošak</h2>
-    <div class="desc">Pregled i grafikoni se odmah ažuriraju</div>
-    <div class="seg" id="typeSeg">
-      <button type="button" data-t="rashod" class="active">➖ Trošak / rashod</button>
-      <button type="button" data-t="prihod">➕ Prihod (plata, honorar…)</button>
-    </div>
-    <div class="chips" id="quickChips"></div>
-    <div id="scanBox" style="margin-bottom:12px">
-      <div class="chips" style="margin-bottom:8px">
-        <button type="button" class="chip" id="btnScanCam">📷 Skeniraj QR sa fiskalnog računa</button>
-        <button type="button" class="chip" id="btnScanImg">🖼️ QR iz slike</button>
-        <button type="button" class="chip" id="btnScanLink">🔗 Nalepi link računa</button>
-      </div>
-      <input type="file" id="scanImgFile" accept="image/*" style="display:none">
-      <div id="scanPanel"></div>
-    </div>
-    <form class="grid tx" id="txForm">
-      <select id="txType" style="display:none">
-        <option value="rashod" selected>Rashod</option>
-        <option value="prihod">Prihod</option>
-      </select>
-      <div>
-        <label for="txDate">Datum</label>
-        <input type="date" id="txDate" required>
-      </div>
-      <div>
-        <label for="txCat">Kategorija</label>
-        <select id="txCat"></select>
-      </div>
-      <div>
-        <label for="txMember">Čije</label>
-        <select id="txMember"></select>
-      </div>
-      <div>
-        <label for="txNote">Opis (opciono)</label>
-        <input type="text" id="txNote" placeholder="npr. račun za struju">
-      </div>
-      <div>
-        <label for="txAmount">Iznos</label>
-        <input type="number" id="txAmount" min="0" step="0.01" required placeholder="0">
-      </div>
-      <button class="btn" type="submit">Dodaj</button>
-    </form>
-    <div id="goalPickWrap" style="margin-top:10px; display:none; max-width:340px;">
-      <label for="txGoal">Uplata za cilj (opciono)</label>
-      <select id="txGoal"></select>
-    </div>
-    <div style="margin-top:10px; max-width:340px;">
-      <label for="txWarranty">🛡️ Garancija do (opciono — uređaji, satovi, tehnika)</label>
-      <input type="date" id="txWarranty">
-    </div>
+  <div class="settings-row">
+    <button type="button" class="btn" data-add="rashod"><span data-icon="plus"></span>Novi trošak</button>
+    <button type="button" class="btn ghost" data-add="prihod"><span data-icon="plus"></span>Novi prihod</button>
   </div>
 
+  <div class="tiles" id="monthTiles"></div>
+
   <div class="card">
-    <h2>🔁 Ponavljajuće transakcije</h2>
+    <h2><span data-icon="repeat"></span>Ponavljajuće transakcije</h2>
     <div class="desc">Kirija, plata, pretplate, rate — podesi jednom, aplikacija te podseća kad dospe i knjiži jednim klikom.</div>
     <div id="recDue"></div>
     <form class="grid" id="recForm" style="grid-template-columns:1.3fr 110px 1fr 1fr 120px 90px auto;">
@@ -194,7 +172,7 @@
       </div>
       <div>
         <label for="recAmount">Iznos</label>
-        <input type="number" id="recAmount" min="0" step="0.01" required placeholder="0">
+        <input type="number" id="recAmount" min="0" step="0.01" inputmode="decimal" required placeholder="0">
       </div>
       <div>
         <label for="recDay">Dan u mesecu</label>
@@ -205,13 +183,11 @@
     <div class="table-scroll" id="recTable" style="margin-top:14px"></div>
   </div>
 
-  <div class="tiles" id="monthTiles"></div>
-
   <div class="card">
     <h2>Pametni budžet — <span id="budgetLbl"></span></h2>
-    <div class="desc">
-      Aplikacija sama računa tvoj prosek iz prethodnih meseci i poredi sa tekućom potrošnjom (cela porodica).
-      Plan je opcioni — upiši svoj ili <button type="button" class="btn ghost sm" id="btnSuggestBudget">🪄 Predloži plan (50/30/20)</button>
+    <div class="desc">Aplikacija sama računa tvoj prosek iz prethodnih meseci i poredi sa tekućom potrošnjom (celo domaćinstvo). Plan je opcioni — upiši svoj ili ga predloži.</div>
+    <div class="settings-row">
+      <button type="button" class="btn ghost sm" id="btnSuggestBudget">Predloži plan (50/30/20)</button>
       <button type="button" class="btn ghost sm" id="btnRollover"></button>
     </div>
     <div class="table-scroll" id="budgetTable"></div>
@@ -219,8 +195,8 @@
   </div>
 
   <div class="card">
-    <h2>📉 Tempo potrošnje — <span id="paceLbl"></span></h2>
-    <div class="desc">Kao u Toshl-u: da li trošiš brže nego što mesec prolazi? Kumulativna potrošnja iz dana u dan (bez štednje), naspram ravnomerne linije plana i prošlog meseca.</div>
+    <h2>Tempo potrošnje — <span id="paceLbl"></span></h2>
+    <div class="desc">Da li trošiš brže nego što mesec prolazi? Kumulativna potrošnja iz dana u dan (bez štednje), naspram ravnomerne linije plana i prošlog meseca.</div>
     <div class="legend">
       <span><i style="background:var(--s1)"></i>Ovaj mesec</span>
       <span><i style="background:var(--s5)"></i>Prošli mesec</span>
@@ -239,8 +215,9 @@
 
   <div class="card">
     <h2>Transakcije — <span id="monthTxLbl"></span></h2>
-    <div style="margin-bottom:12px; max-width:340px;">
-      <input type="search" id="txSearch" placeholder="🔍 Pretraži po opisu, kategoriji ili iznosu…">
+    <div style="margin-bottom:12px; max-width:360px;">
+      <label for="txSearch" class="sr-only">Pretraga transakcija</label>
+      <input type="search" id="txSearch" placeholder="Pretraži po opisu, kategoriji ili iznosu…">
     </div>
     <div class="table-scroll" id="txTable"></div>
   </div>
@@ -249,13 +226,13 @@
 <!-- ===================== CILJEVI ===================== -->
 <section class="view" id="view-goals">
   <div class="card">
-    <h2>Novi cilj štednje</h2>
-    <div class="desc">Bilo šta sa ciljnim iznosom i rokom — klikni predlog ili upiši svoje. Uplate ka cilju unosiš kao transakciju kategorije „Štednja" i izabereš cilj.</div>
+    <h2><span data-icon="target"></span>Novi cilj štednje</h2>
+    <div class="desc">Bilo šta sa ciljnim iznosom i rokom — klikni predlog ili upiši svoje. Uplate ka cilju unosiš kao trošak kategorije „Štednja" i izabereš cilj.</div>
     <div class="chips" id="goalChips"></div>
     <form class="grid" id="goalForm" style="grid-template-columns:1.4fr 1fr 130px 130px 130px auto;">
       <div>
         <label for="gName">Naziv</label>
-        <input type="text" id="gName" required placeholder="npr. Letovanje 2027 ✈️">
+        <input type="text" id="gName" required placeholder="npr. Letovanje 2027">
       </div>
       <div>
         <label for="gMember">Čiji cilj</label>
@@ -263,11 +240,11 @@
       </div>
       <div>
         <label for="gTarget">Ciljni iznos</label>
-        <input type="number" id="gTarget" min="1" step="1" required placeholder="0">
+        <input type="number" id="gTarget" min="1" step="1" inputmode="decimal" required placeholder="0">
       </div>
       <div>
         <label for="gStart">Već ušteđeno</label>
-        <input type="number" id="gStart" min="0" step="1" value="0">
+        <input type="number" id="gStart" min="0" step="1" inputmode="decimal" value="0">
       </div>
       <div>
         <label for="gDeadline">Rok</label>
@@ -277,13 +254,13 @@
     </form>
   </div>
   <div class="goal-grid" id="goalGrid"></div>
-  <div class="empty" id="goalsEmpty" style="display:none">Još nema ciljeva — dodaj prvi iznad. 🎯</div>
+  <div class="empty" id="goalsEmpty" style="display:none">Još nema ciljeva — dodaj prvi iznad.</div>
 </section>
 
 <!-- ===================== PROJEKCIJA ===================== -->
 <section class="view" id="view-proj">
   <div class="card">
-    <h2>Projekcija narednih 12 meseci</h2>
+    <h2><span data-icon="trend"></span>Projekcija narednih 12 meseci</h2>
     <div class="desc">
       Na osnovu tvog proseka (<span id="projBasis"></span>) projektujemo koliko ćeš uštedeti.
       Pomeri kontrole i vidi „šta ako" — npr. šta ako ovog meseca potrošiš više, ili trajno smanjiš/povećaš potrošnju.
@@ -291,7 +268,7 @@
     <div class="proj-controls">
       <div class="pc">
         <label for="pOnce">Vanredni trošak sledećeg meseca</label>
-        <input type="number" id="pOnce" min="0" step="1000" value="0">
+        <input type="number" id="pOnce" min="0" step="1000" inputmode="decimal" value="0">
         <div class="note" style="margin-top:4px">npr. kvar na kolima, veća kupovina</div>
       </div>
       <div class="pc">
@@ -301,7 +278,7 @@
       </div>
       <div class="pc">
         <label for="pExtra">Dodatni mesečni prihod</label>
-        <input type="number" id="pExtra" min="0" step="1000" value="0">
+        <input type="number" id="pExtra" min="0" step="1000" inputmode="decimal" value="0">
         <div class="note" style="margin-top:4px">npr. honorar, povišica</div>
       </div>
     </div>
@@ -310,7 +287,7 @@
       <span><i style="background:var(--s5)"></i>Sa izmenama</span>
     </div>
     <div class="chart-wrap" id="chartProj"></div>
-    <div class="callout" id="projSummary"></div>
+    <div class="callout neutral" id="projSummary"></div>
   </div>
 
   <div class="card">
@@ -322,8 +299,21 @@
 
 <!-- ===================== IMOVINA ===================== -->
 <section class="view" id="view-assets">
+  <div class="tiles" id="assetTiles"></div>
+
   <div class="card">
-    <h2>Nova stavka imovine</h2>
+    <h2>Neto vrednost kroz vreme</h2>
+    <div class="desc">Imovina, obaveze i njihova razlika (neto), mesec po mesec</div>
+    <div class="legend">
+      <span><i style="background:var(--s2)"></i>Imovina</span>
+      <span><i style="background:var(--s5)"></i>Obaveze</span>
+      <span><i style="background:var(--s1)"></i>Neto vrednost</span>
+    </div>
+    <div class="chart-wrap" id="chartAssets"></div>
+  </div>
+
+  <div class="card">
+    <h2><span data-icon="gem"></span>Nova stavka imovine</h2>
     <div class="desc">Investiciono zlato, nakit, satovi, devizna štednja, fondovi… Vrednost ažuriraš ručno kad god želiš — aplikacija pamti istoriju i crta rast. (Aplikacija ne daje investicione preporuke.)</div>
     <form class="grid" id="assetForm" style="grid-template-columns:1.4fr 1fr 1fr 140px 150px auto;">
       <div>
@@ -354,7 +344,7 @@
       </div>
       <div>
         <label for="aValue">Trenutna vrednost</label>
-        <input type="number" id="aValue" min="0" step="1" required placeholder="0">
+        <input type="number" id="aValue" min="0" step="1" inputmode="decimal" required placeholder="0">
       </div>
       <div>
         <label for="aDate">Datum procene</label>
@@ -365,7 +355,7 @@
   </div>
 
   <div class="card">
-    <h2>Nova obaveza — kredit ili dug</h2>
+    <h2><span data-icon="card"></span>Nova obaveza — kredit ili dug</h2>
     <div class="desc">Druga polovina formule: neto vrednost = imovina − obaveze. Upiši preostali dug po svakom kreditu, minusu ili kartici — i ažuriraj ga kako otplaćuješ.</div>
     <form class="grid" id="debtForm" style="grid-template-columns:1.3fr 1fr 1fr 140px 130px 150px auto;">
       <div>
@@ -391,11 +381,11 @@
       </div>
       <div>
         <label for="dValue">Preostali dug</label>
-        <input type="number" id="dValue" min="0" step="1" required placeholder="0">
+        <input type="number" id="dValue" min="0" step="1" inputmode="decimal" required placeholder="0">
       </div>
       <div>
         <label for="dRate">Mesečna rata</label>
-        <input type="number" id="dRate" min="0" step="1" placeholder="opciono">
+        <input type="number" id="dRate" min="0" step="1" inputmode="decimal" placeholder="opciono">
       </div>
       <div>
         <label for="dDate">Datum stanja</label>
@@ -403,19 +393,6 @@
       </div>
       <button class="btn" type="submit">Dodaj</button>
     </form>
-  </div>
-
-  <div class="tiles" id="assetTiles"></div>
-
-  <div class="card">
-    <h2>Neto vrednost kroz vreme</h2>
-    <div class="desc">Imovina, obaveze i njihova razlika (neto), mesec po mesec</div>
-    <div class="legend">
-      <span><i style="background:var(--s2)"></i>Imovina</span>
-      <span><i style="background:var(--s6)"></i>Obaveze</span>
-      <span><i style="background:var(--s1)"></i>Neto vrednost</span>
-    </div>
-    <div class="chart-wrap" id="chartAssets"></div>
   </div>
 
   <div class="card">
@@ -431,19 +408,19 @@
   </div>
 
   <div class="card">
-    <h2>🛡️ Garancije</h2>
-    <div class="desc">Kupovine sa upisanim rokom garancije — aplikacija prati koliko je ostalo (kao mani.rs). Rok upišeš pri unosu troška u 📅 Mesečno, a 🔗 vodi do fiskalnog računa za servis ili reklamaciju.</div>
+    <h2><span data-icon="shield"></span>Garancije</h2>
+    <div class="desc">Kupovine sa upisanim rokom garancije — aplikacija prati koliko je ostalo. Rok upišeš pri unosu troška, a ikonica linka vodi do fiskalnog računa za servis ili reklamaciju.</div>
     <div class="table-scroll" id="warrTable"></div>
   </div>
 
   <div class="card">
-    <h2>ℹ️ Kako se računa neto vrednost (net worth)</h2>
+    <h2>Kako se računa neto vrednost</h2>
     <ul class="rules">
-      <li>🧮 <b>Neto vrednost = imovina − obaveze.</b> To je standardna formula, bez izuzetaka.</li>
-      <li>✅ <b>Računa se:</b> nekretnine, vozila, gotovina i tekući računi, devizna štednja, zlato, akcije/fondovi, penzijski fondovi, kripto, poslovni udeli — i <b>vrednije luksuzne stvari od ranije</b> (satovi, nakit, umetnine, kolekcije) po <b>realnoj prodajnoj ceni</b>, ne po ceni kupovine.</li>
-      <li>❌ <b>Ne računa se:</b> obična garderoba i stvari za ličnu upotrebu koje nemaju ozbiljnu preprodajnu vrednost.</li>
-      <li>📉 <b>Obaveze:</b> preostali dug svih kredita (ne cela pozajmljena suma), minusi, kartice, pozajmice od porodice/prijatelja.</li>
-      <li>🔄 <b>Osvežavanje:</b> procene imovine i stanje dugova ažurirajte bar na 3–6 meseci da grafikon pokazuje pravu sliku.</li>
+      <li><b>Neto vrednost = imovina − obaveze.</b> To je standardna formula, bez izuzetaka.</li>
+      <li><b>Računa se:</b> nekretnine, vozila, gotovina i tekući računi, devizna štednja, zlato, akcije/fondovi, penzijski fondovi, kripto, poslovni udeli — i <b>vrednije luksuzne stvari</b> (satovi, nakit, umetnine, kolekcije) po <b>realnoj prodajnoj ceni</b>, ne po ceni kupovine.</li>
+      <li><b>Ne računa se:</b> obična garderoba i stvari za ličnu upotrebu koje nemaju ozbiljnu preprodajnu vrednost.</li>
+      <li><b>Obaveze:</b> preostali dug svih kredita (ne cela pozajmljena suma), minusi, kartice, pozajmice od porodice/prijatelja.</li>
+      <li><b>Osvežavanje:</b> procene imovine i stanje dugova ažurirajte bar na 3–6 meseci da grafikon pokazuje pravu sliku.</li>
     </ul>
   </div>
 </section>
@@ -451,17 +428,23 @@
 <!-- ===================== KREDITI ===================== -->
 <section class="view" id="view-credit">
   <div class="card">
-    <h2>Kreditna sposobnost domaćinstva</h2>
+    <h2><span data-icon="bank"></span>Kreditna sposobnost domaćinstva</h2>
     <div class="desc">
-      Procena kolika rata i koliki kredit su realni — posebno za svakog i zajedno.
-      Pravila: <b>28/36</b> — rata stambenog ≤ 28% neto prihoda, sve rate zajedno ≤ 36%
-      (limit ispod je podrazumevano 36%, prilagodi po želji). U Srbiji je stambeni kredit
-      <b>maksimalno 30 godina</b>. <b>Ovo je informativna procena, banke računaju po svojim pravilima.</b>
+      Koliki kredit je realan — posebno za svakog i zajedno. Pravila <b>28/36</b>: rata stambenog ≤ 28% neto prihoda, sve rate zajedno ≤ 36%.
+      U Srbiji je stambeni kredit <b>najduže 30 godina</b>. <b>Ovo je informativna procena — banke računaju po svojim pravilima.</b>
     </div>
-    <div class="seg" id="loanSeg">
-      <button type="button" data-l="stambeni">🏠 Stambeni</button>
-      <button type="button" data-l="potrosacki">🛋️ Potrošački</button>
-      <button type="button" data-l="kes">💵 Keš</button>
+    <div class="seg" id="loanSeg" role="group" aria-label="Vrsta kredita">
+      <button type="button" data-l="stambeni">Stambeni</button>
+      <button type="button" data-l="potrosacki">Potrošački</button>
+      <button type="button" data-l="kes">Keš</button>
+    </div>
+    <div class="seg" id="curSeg" role="group" aria-label="Valuta kredita">
+      <button type="button" data-cur="EUR">€ EUR (indeksiran)</button>
+      <button type="button" data-cur="HOME" id="curHomeBtn">RSD (dinarski)</button>
+    </div>
+    <div class="seg" id="kindSeg" role="group" aria-label="Vrsta kamate">
+      <button type="button" data-k="fix">Fiksna kamata</button>
+      <button type="button" data-k="var">Promenljiva kamata</button>
     </div>
     <p class="note" style="margin-bottom:14px" id="loanNote"></p>
     <div class="calc-grid">
@@ -470,40 +453,52 @@
         <div id="crIncomes" style="display:contents"></div>
         <div>
           <label for="crOblig">Postojeće mesečne rate/obaveze</label>
-          <input type="number" id="crOblig" min="0" step="10" value="0">
+          <input type="number" id="crOblig" min="0" step="10" inputmode="decimal" value="0">
         </div>
         <div>
           <label for="crDti">Maks. opterećenje prihoda (%)</label>
           <input type="number" id="crDti" min="10" max="60" step="1" value="36">
         </div>
-        <div>
-          <label for="crApr">Kamatna stopa — godišnja (%)</label>
-          <input type="number" id="crApr" min="0" step="0.1" value="5.5">
+        <div id="crFixWrap">
+          <label for="crApr">Kamatna stopa — fiksna, godišnja (%)</label>
+          <input type="number" id="crApr" min="0" step="0.1" inputmode="decimal" value="5.5">
+        </div>
+        <div id="crRefWrap">
+          <label for="crRef" id="crRefLbl">EURIBOR 6M (%)</label>
+          <input type="number" id="crRef" step="0.01" inputmode="decimal" value="2">
+        </div>
+        <div id="crMarginWrap">
+          <label for="crMargin">Marža banke (%)</label>
+          <input type="number" id="crMargin" min="0" step="0.05" inputmode="decimal" value="3">
+        </div>
+        <div id="crFxWrap">
+          <label for="crFx" id="crFxLbl">Kurs EUR (srednji NBS)</label>
+          <input type="number" id="crFx" min="0" step="0.01" inputmode="decimal" value="117.2">
         </div>
         <div>
-          <label for="crYears">Rok otplate (godina) — stambeni maks. 30</label>
+          <label for="crYears">Rok otplate (godina)</label>
           <input type="number" id="crYears" min="1" max="30" step="1" value="30">
         </div>
         <div>
-          <label for="crDown">Raspoloživo učešće / keš</label>
-          <input type="number" id="crDown" min="0" step="100" value="0">
+          <label for="crDown" id="crDownLbl">Raspoloživo učešće</label>
+          <input type="number" id="crDown" min="0" step="100" inputmode="decimal" value="0">
         </div>
       </div>
       <div>
-        <div class="note" style="margin-bottom:6px">Maksimalni iznosi po scenariju:</div>
-        <div class="cred-grid" id="credResults" style="grid-template-columns:1fr;"></div>
+        <div class="rate-box" id="rateBox"></div>
+        <div class="cred-grid" id="credResults"></div>
+        <div id="fxRisk"></div>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <h2>⚡ Prevremena otplata — šta se više isplati</h2>
+    <h2>Prevremena otplata — šta se više isplati</h2>
     <div class="desc">
-      Kad uplatiš više od rate, banka nudi dve opcije: <b>skraćenje roka</b> (rata ista, kredit se gasi ranije — najveća ušteda kamate)
-      ili <b>smanjenje rate</b> (rok isti, mesečno lakše). Pravila u Srbiji (okvirno, po Zakonu o zaštiti korisnika finansijskih usluga):
+      Kad uplatiš više od rate, banka nudi <b>skraćenje roka</b> (rata ista, kredit se gasi ranije — najveća ušteda kamate)
+      ili <b>smanjenje rate</b> (rok isti, mesečno lakše). U Srbiji (okvirno, po Zakonu o zaštiti korisnika finansijskih usluga):
       <b>bez naknade</b> ako prevremeno otplaćeno u 12 meseci ne prelazi <b>1.000.000 RSD</b>; preko toga do <b>1%</b>
-      (0,5% ako je do kraja ostalo manje od godinu dana), a kod kredita sa <b>promenljivom stopom naknade po pravilu nema</b>.
-      Za auto kredite važe ista pravila — proveri svoj ugovor.
+      (0,5% ako je do kraja ostalo manje od godinu dana), a kod <b>promenljive stope naknade po pravilu nema</b>.
     </div>
     <div class="calc-grid">
       <div class="fields">
@@ -512,12 +507,16 @@
           <select id="ppDebt"><option value="">— ručni unos —</option></select>
         </div>
         <div>
+          <label for="ppCur">Valuta kredita</label>
+          <select id="ppCur"><option value="HOME">RSD</option><option value="EUR">EUR</option></select>
+        </div>
+        <div>
           <label for="ppPrincipal">Preostali dug</label>
-          <input type="number" id="ppPrincipal" min="0" step="1000" value="7350000">
+          <input type="number" id="ppPrincipal" min="0" step="1000" inputmode="decimal" value="7350000">
         </div>
         <div>
           <label for="ppApr">Kamatna stopa — godišnja (%)</label>
-          <input type="number" id="ppApr" min="0" step="0.1" value="5.5">
+          <input type="number" id="ppApr" min="0" step="0.1" inputmode="decimal" value="5.5">
         </div>
         <div>
           <label for="ppMonths">Preostalo meseci</label>
@@ -525,11 +524,11 @@
         </div>
         <div>
           <label for="ppOnce">Jednokratna uplata sada</label>
-          <input type="number" id="ppOnce" min="0" step="10000" value="0">
+          <input type="number" id="ppOnce" min="0" step="10000" inputmode="decimal" value="0">
         </div>
         <div>
           <label for="ppExtra">Dodatno svakog meseca</label>
-          <input type="number" id="ppExtra" min="0" step="1000" value="10000">
+          <input type="number" id="ppExtra" min="0" step="1000" inputmode="decimal" value="10000">
         </div>
       </div>
       <div id="ppResults"></div>
@@ -537,21 +536,21 @@
   </div>
 
   <div class="card">
-    <h2>🚗 Priuštivost automobila</h2>
-    <div class="desc">Unesi podatke o vozilu i kreditu — odmah vidiš mesečnu ratu, ukupan trošak i da li kupovina staje u tvoj budžet (pravilo: ukupan mesečni trošak auta ≤ 15% prihoda).</div>
+    <h2><span data-icon="car"></span>Priuštivost automobila</h2>
+    <div class="desc">Unesi podatke o vozilu i kreditu — odmah vidiš mesečnu ratu, ukupan trošak i da li kupovina staje u budžet (pravilo: ukupan mesečni trošak auta ≤ 15% prihoda).</div>
     <div class="calc-grid">
       <div class="fields">
         <div>
           <label for="cPrice">Cena vozila</label>
-          <input type="number" id="cPrice" min="0" step="100" value="15000">
+          <input type="number" id="cPrice" min="0" step="100" inputmode="decimal" value="15000">
         </div>
         <div>
           <label for="cDown">Učešće</label>
-          <input type="number" id="cDown" min="0" step="100" value="3000">
+          <input type="number" id="cDown" min="0" step="100" inputmode="decimal" value="3000">
         </div>
         <div>
           <label for="cApr">Kamatna stopa — godišnja (%)</label>
-          <input type="number" id="cApr" min="0" step="0.1" value="7.5">
+          <input type="number" id="cApr" min="0" step="0.1" inputmode="decimal" value="7.5">
         </div>
         <div>
           <label for="cTerm">Rok otplate (meseci)</label>
@@ -559,19 +558,19 @@
         </div>
         <div>
           <label for="cIns">Osiguranje + registracija (mesečno)</label>
-          <input type="number" id="cIns" min="0" step="10" value="60">
+          <input type="number" id="cIns" min="0" step="10" inputmode="decimal" value="60">
         </div>
         <div>
           <label for="cFuel">Gorivo (mesečno)</label>
-          <input type="number" id="cFuel" min="0" step="10" value="120">
+          <input type="number" id="cFuel" min="0" step="10" inputmode="decimal" value="120">
         </div>
         <div>
           <label for="cMaint">Održavanje (mesečno)</label>
-          <input type="number" id="cMaint" min="0" step="10" value="50">
+          <input type="number" id="cMaint" min="0" step="10" inputmode="decimal" value="50">
         </div>
         <div>
           <label for="cIncome">Mesečni prihod domaćinstva (neto)</label>
-          <input type="number" id="cIncome" min="0" step="50" value="2000">
+          <input type="number" id="cIncome" min="0" step="50" inputmode="decimal" value="2000">
         </div>
       </div>
       <div>
@@ -580,13 +579,12 @@
       </div>
     </div>
   </div>
-
 </section>
 
 <!-- ===================== PODACI ===================== -->
 <section class="view" id="view-data">
   <div class="card">
-    <h2>Podešavanja</h2>
+    <h2><span data-icon="settings"></span>Podešavanja</h2>
     <div class="desc">Valuta, godina i ko unosi na ovom uređaju</div>
     <div class="settings-row">
       <div>
@@ -613,7 +611,7 @@
   </div>
 
   <div class="card">
-    <h2 data-i18n="members.title">👥 Članovi domaćinstva</h2>
+    <h2><span data-icon="users"></span><span data-i18n="members.title">Članovi domaćinstva</span></h2>
     <div class="desc" data-i18n="members.desc">Ko sve vodi novac u ovom domaćinstvu.</div>
     <div class="member-list" id="memberList"></div>
     <form class="grid" id="memberForm" style="grid-template-columns:1fr auto; max-width:440px; margin-top:12px;">
@@ -626,7 +624,7 @@
   </div>
 
   <div class="card">
-    <h2>🏷️ Kategorije</h2>
+    <h2><span data-icon="tag"></span>Kategorije</h2>
     <div class="desc">
       Osnovne kategorije su ugrađene, a ovde dodaj svoje — npr. „Deca", „Kućni ljubimci", „Teretana", „Pokloni".
       Nova kategorija se odmah pojavljuje svuda: pri unosu, u budžetu, grafikonima i godišnjoj tabeli.
@@ -634,7 +632,7 @@
     <form class="grid" id="catForm" style="grid-template-columns:1.5fr 160px auto; max-width:560px;">
       <div>
         <label for="catName">Naziv kategorije</label>
-        <input type="text" id="catName" required maxlength="24" placeholder="npr. Deca 🧸">
+        <input type="text" id="catName" required maxlength="24" placeholder="npr. Deca">
       </div>
       <div>
         <label for="catType">Tip</label>
@@ -649,14 +647,14 @@
   </div>
 
   <div class="card">
-    <h2>📥 Uvoz izvoda iz banke (CSV)</h2>
+    <h2><span data-icon="file"></span>Uvoz izvoda iz banke (CSV)</h2>
     <div class="desc">
       Izvezi promet iz e-bankinga kao CSV i ubaci ga ovde — aplikacija sama prepozna kolone (datum, opis, iznos),
       pogodi kategorije po nazivu trgovca (Maxi → Potrošnja, EPS → Računi, NIS → Vozilo…), a ti pregledaš,
       ispraviš šta treba i potvrdiš. Duplikati se automatski preskaču, pa isti fajl možeš uvesti dva puta bez straha.
     </div>
     <div class="settings-row">
-      <button class="btn" id="btnCsv" type="button">📄 Izaberi CSV fajl</button>
+      <button class="btn" id="btnCsv" type="button"><span data-icon="upload"></span>Izaberi CSV fajl</button>
       <input type="file" id="csvFile" accept=".csv,.txt" style="display:none">
       <div>
         <label for="csvMember">Vlasnik uvezenih transakcija</label>
@@ -667,18 +665,18 @@
   </div>
 
   <div class="card">
-    <h2>Rezervna kopija</h2>
+    <h2><span data-icon="shield"></span>Rezervna kopija</h2>
     <div class="desc">
       Podaci žive samo na ovom uređaju. Povremeno napravi rezervu — njome preneseš sve i na drugi uređaj.
       <b>„Uvezi i spoji"</b> je za više članova domaćinstva: svako izveze svoj fajl, spojite ih na jednom uređaju — bez duplikata, uz oznaku ko je šta uneo.
     </div>
     <div class="settings-row">
-      <button class="btn" id="btnExport" type="button">⬇️ Izvezi podatke (JSON)</button>
-      <button class="btn ghost" id="btnMerge" type="button">🔀 Uvezi i spoji</button>
-      <button class="btn ghost" id="btnImport" type="button">⬆️ Uvezi (zameni sve)</button>
+      <button class="btn" id="btnExport" type="button"><span data-icon="download"></span>Izvezi podatke (JSON)</button>
+      <button class="btn ghost" id="btnMerge" type="button"><span data-icon="merge"></span>Uvezi i spoji</button>
+      <button class="btn ghost" id="btnImport" type="button"><span data-icon="upload"></span>Uvezi (zameni sve)</button>
       <input type="file" id="importFile" accept=".json" style="display:none">
       <input type="file" id="mergeFile" accept=".json" style="display:none">
-      <button class="btn danger" id="btnWipe" type="button">🗑️ Obriši sve podatke</button>
+      <button class="btn danger" id="btnWipe" type="button"><span data-icon="trash"></span>Obriši sve podatke</button>
     </div>
     <p class="note" id="dataStats"></p>
   </div>
@@ -686,8 +684,102 @@
 
 </main>
 
-<div id="camModal" style="position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; z-index:50; align-items:center; justify-content:center; flex-direction:column; gap:14px; padding:16px">
-  <video id="camVideo" autoplay playsinline muted style="max-width:92vw; max-height:70vh; border-radius:12px; background:#000"></video>
+<!-- ===================== UNOS TROŠKA / PRIHODA ===================== -->
+<div class="modal-bg sheet-bg" id="entrySheet">
+  <div class="modal sheet entry rashod" id="txCard" role="dialog" aria-modal="true" aria-labelledby="txFormTitle">
+    <form id="txForm" style="display:flex; flex-direction:column; min-height:0; flex:1 1 auto" novalidate>
+      <div class="modal-head">
+        <h2 id="txFormTitle">Novi trošak</h2>
+        <button type="button" class="iconbtn" id="btnEntryClose" aria-label="Zatvori"><span data-icon="close"></span></button>
+      </div>
+      <div class="modal-scroll" style="padding:4px 24px 12px">
+        <div class="seg" id="typeSeg" role="group" aria-label="Vrsta unosa" style="margin-bottom:6px">
+          <button type="button" data-t="rashod" class="active">Trošak</button>
+          <button type="button" data-t="prihod">Prihod</button>
+        </div>
+        <select id="txType" class="sr-only" aria-hidden="true" tabindex="-1">
+          <option value="rashod" selected>Rashod</option>
+          <option value="prihod">Prihod</option>
+        </select>
+
+        <div class="amount-box">
+          <label for="txAmount" class="sr-only">Iznos</label>
+          <input type="number" id="txAmount" min="0" step="0.01" inputmode="decimal" placeholder="0" required>
+          <span class="cur" id="txCur">RSD</span>
+        </div>
+
+        <div class="scan-row">
+          <button type="button" class="chip" id="btnScanCam"><span data-icon="qr" data-size="18"></span>Skeniraj račun</button>
+          <button type="button" class="chip" id="btnScanImg"><span data-icon="image" data-size="18"></span>QR iz slike</button>
+          <button type="button" class="chip" id="btnScanLink"><span data-icon="link" data-size="18"></span>Nalepi link</button>
+        </div>
+        <input type="file" id="scanImgFile" accept="image/*" style="display:none">
+        <div id="scanPanel"></div>
+
+        <div class="entry-section" id="quickWrap">
+          <span class="lbl">Brzo</span>
+          <div class="chips" id="quickChips" style="margin:0"></div>
+        </div>
+
+        <div class="entry-section">
+          <span class="lbl" id="txCatLbl">Kategorija</span>
+          <div class="chips" id="txCatChips" role="group" aria-labelledby="txCatLbl" style="margin:0"></div>
+          <select id="txCat" class="sr-only" aria-hidden="true" tabindex="-1"></select>
+        </div>
+
+        <div class="entry-section">
+          <span class="lbl" id="txMemberLbl">Čije</span>
+          <div class="chips" id="txMemberChips" role="group" aria-labelledby="txMemberLbl" style="margin:0"></div>
+          <select id="txMember" class="sr-only" aria-hidden="true" tabindex="-1"></select>
+        </div>
+
+        <div class="entry-grid">
+          <div>
+            <label for="txDate">Datum</label>
+            <input type="date" id="txDate" required>
+          </div>
+          <div>
+            <label for="txNote">Opis (opciono)</label>
+            <input type="text" id="txNote" placeholder="npr. račun za struju">
+          </div>
+          <div id="goalPickWrap" style="display:none">
+            <label for="txGoal">Uplata za cilj (opciono)</label>
+            <select id="txGoal"></select>
+          </div>
+          <div>
+            <label for="txWarranty">Garancija do (opciono)</label>
+            <input type="date" id="txWarranty">
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" id="btnEntryCancel">Otkaži</button>
+        <div class="spacer"></div>
+        <button type="submit" class="btn" id="txSubmit">Sačuvaj trošak</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== MENI „VIŠE" (telefon) ===================== -->
+<div class="modal-bg sheet-bg" id="moreSheet">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="moreTitle" style="max-width:420px">
+    <div class="modal-head" style="flex-direction:row; justify-content:space-between; align-items:center; width:100%">
+      <h2 id="moreTitle" style="margin:0">Više</h2>
+      <button type="button" class="iconbtn" data-close aria-label="Zatvori"><span data-icon="close"></span></button>
+    </div>
+    <div class="more-list">
+      <button type="button" data-goto="proj"><span class="ico" style="--c:var(--s4)"><span data-icon="trend"></span></span>Projekcija</button>
+      <button type="button" data-goto="assets"><span class="ico" style="--c:var(--s2)"><span data-icon="gem"></span></span>Imovina i garancije</button>
+      <button type="button" data-goto="credit"><span class="ico" style="--c:var(--s1)"><span data-icon="bank"></span></span>Krediti i auto</button>
+      <button type="button" data-goto="data"><span class="ico" style="--c:var(--s7)"><span data-icon="settings"></span></span>Podaci i podešavanja</button>
+      <button type="button" data-guide><span class="ico" style="--c:var(--s5)"><span data-icon="help"></span></span>Vodič kroz aplikaciju</button>
+    </div>
+  </div>
+</div>
+
+<div id="camModal" style="position:fixed; inset:0; background:rgba(0,0,0,.85); display:none; z-index:80; align-items:center; justify-content:center; flex-direction:column; gap:14px; padding:16px">
+  <video id="camVideo" autoplay playsinline muted style="max-width:92vw; max-height:70vh; border-radius:16px; background:#000"></video>
   <div style="color:#fff; font-size:14px; font-weight:600">Uperi kameru u QR kod na dnu fiskalnog računa</div>
   <button class="btn danger" id="btnCamStop" type="button">Zatvori</button>
 </div>

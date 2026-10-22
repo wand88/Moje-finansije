@@ -1,6 +1,7 @@
 /* ============ Pomoćnici nad stanjem: kategorije, članovi, filteri, format ============ */
 import { intlLocale, t } from "./i18n";
 import { escapeHtml } from "./ui/dom";
+import { icon } from "./ui/icons";
 import { state } from "./store";
 import { ALL, SHARED, type Asset, type Category, type Tx } from "./types";
 
@@ -8,9 +9,9 @@ export const MONTHS = ["Januar", "Februar", "Mart", "April", "Maj", "Jun", "Jul"
 export const MONTHS_S = ["Jan", "Feb", "Mar", "Apr", "Maj", "Jun", "Jul", "Avg", "Sep", "Okt", "Nov", "Dec"];
 
 export const BASE_EXP_CATS: Category[] = [
-  { id: "stednja", name: "Štednja", color: "var(--s1)" },
+  { id: "stednja", name: "Štednja", color: "var(--s3)" },
   { id: "vozilo", name: "Vozilo", color: "var(--s2)" },
-  { id: "dom", name: "Dom i stanovanje", color: "var(--s3)" },
+  { id: "dom", name: "Dom i stanovanje", color: "var(--s1)" },
   { id: "racuni", name: "Računi", color: "var(--s4)" },
   { id: "potrosnja", name: "Potrošnja", color: "var(--s5)" },
   { id: "pretplate", name: "Pretplate", color: "var(--s6)" },
@@ -18,9 +19,9 @@ export const BASE_EXP_CATS: Category[] = [
   { id: "garderoba", name: "Garderoba i luksuz", color: "var(--s8)" },
 ];
 export const BASE_INC_CATS: Category[] = [
-  { id: "plata", name: "Plata", color: "var(--s1)" },
+  { id: "plata", name: "Plata", color: "var(--s3)" },
   { id: "honorar", name: "Honorar", color: "var(--s2)" },
-  { id: "ostalo", name: "Ostali prihodi", color: "var(--s3)" },
+  { id: "ostalo", name: "Ostali prihodi", color: "var(--s7)" },
 ];
 
 /* korisničke kategorije se dodaju na osnovne */
@@ -37,10 +38,10 @@ export function memberName(id: string): string {
   return state.members.find((m) => m.id === id)?.name ?? t("member.default");
 }
 export const memberBadge = (id: string): string =>
-  `<span class="member-badge">${id === SHARED ? "🤝" : "👤"} ${escapeHtml(memberName(id))}</span>`;
+  `<span class="member-badge">${icon(id === SHARED ? "users" : "user", 13)}${escapeHtml(memberName(id))}</span>`;
 export const memberOptions = (): string =>
-  `<option value="${SHARED}">🤝 ${escapeHtml(t("member.shared"))}</option>` +
-  state.members.map((m) => `<option value="${escapeHtml(m.id)}">👤 ${escapeHtml(m.name)}</option>`).join("");
+  `<option value="${SHARED}">${escapeHtml(t("member.shared"))}</option>` +
+  state.members.map((m) => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}</option>`).join("");
 
 /* ---- transakcije ---- */
 export const txOfYear = (): Tx[] => state.tx.filter((t) => t.date.slice(0, 4) === String(state.year));
@@ -57,4 +58,7 @@ export function lastMonthForAvg(now: Date = new Date()): number {
 /* ---- format ---- */
 export const fmt = (v: number): string =>
   new Intl.NumberFormat(intlLocale(), { style: "currency", currency: state.currency, maximumFractionDigits: 0 }).format(v);
+/* iznos u zadatoj valuti (npr. rata kredita u evrima dok je domaćinstvo u dinarima) */
+export const fmtIn = (v: number, currency: string, digits = 0): string =>
+  new Intl.NumberFormat(intlLocale(), { style: "currency", currency, minimumFractionDigits: digits, maximumFractionDigits: digits }).format(v);
 export const fmtN = (v: number): string => new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 0 }).format(v);

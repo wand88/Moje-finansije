@@ -75,9 +75,18 @@ export interface CreditState {
   loanType?: string;
   /* neto mesečni prihod po članu (id člana → iznos) */
   incomes: Record<string, number>;
+  /* valuta kredita: "EUR" (indeksiran) ili "HOME" (valuta domaćinstva, npr. RSD) */
+  loanCur?: "EUR" | "HOME";
+  /* fiksna ili promenljiva kamata (promenljiva = referentna stopa + marža) */
+  rateKind?: "fix" | "var";
+  /* referentna stopa po valuti kredita (EURIBOR / BELIBOR…) */
+  refs?: Record<string, number>;
   crOblig?: number;
   crDti?: number;
   crApr?: number;
+  crMargin?: number;
+  /* kurs: 1 EUR u valuti domaćinstva */
+  crFx?: number;
   crYears?: number;
   crDown?: number;
 }

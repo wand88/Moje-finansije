@@ -19,7 +19,7 @@ export function clearPendingScan(): void {
 
 const panel = () => $<HTMLDivElement>("scanPanel");
 const say = (html: string, tone?: "good" | "crit") =>
-  (panel().innerHTML = `<div class="callout"${tone ? ` style="border-left-color:var(--${tone})"` : ""}>${html}</div>`);
+  (panel().innerHTML = `<div class="callout ${tone || "neutral"}" style="margin-top:12px">${html}</div>`);
 
 function applyScan(res: FiscalScan | null): void {
   if (!res) { say("QR/link nije prepoznat kao fiskalni račun (suf.purs.gov.rs). Pokušaj ponovo ili unesi ručno.", "crit"); return; }
@@ -28,9 +28,9 @@ function applyScan(res: FiscalScan | null): void {
   if (res.date) $("txDate").value = res.date;
   if (res.amount) $("txAmount").value = String(res.amount);
   if (!$("txNote").value) $("txNote").value = "Fiskalni račun";
-  say(`✅ Račun učitan${res.amount ? `: <b>${fmt(res.amount)}</b>` : ""}${res.date ? `, ${fmtDate(res.date)}` : ""}
+  say(`Račun učitan${res.amount ? `: <b>${fmt(res.amount)}</b>` : ""}${res.date ? `, ${fmtDate(res.date)}` : ""}
     ${res.amount ? "— proveri iznos, izaberi <b>kategoriju</b> i klikni Dodaj." : `— iznos upiši ručno (nije mogao da se pročita iz QR-a), a <a href="${escapeHtml(res.url)}" target="_blank" rel="noopener">ceo račun pogledaj ovde</a>.`}
-    Uz transakciju se čuva 🔗 link ka računu.`, "good");
+    Uz transakciju se čuva link ka računu.`, "good");
   $("txAmount").focus();
 }
 
@@ -46,10 +46,10 @@ export function initScan(): void {
   $("btnCamStop").addEventListener("click", stopCam);
   $("btnScanCam").addEventListener("click", async () => {
     if (!hasDetector()) {
-      say(`📱 Ovaj browser nema ugrađen čitač QR kodova (npr. iPhone/Safari). Uradi ovako: skeniraj QR <b>običnom kamerom telefona</b>, kopiraj link koji iskoči i klikni „🔗 Nalepi link računa".`);
+      say(`Ovaj browser nema ugrađen čitač QR kodova (npr. iPhone/Safari). Uradi ovako: skeniraj QR <b>običnom kamerom telefona</b>, kopiraj link koji iskoči i klikni „Nalepi link".`);
       return;
     }
-    if (!window.isSecureContext) { say(`🔒 Kamera radi samo preko https ili localhost. Koristi „🖼️ QR iz slike" ili „🔗 Nalepi link".`); return; }
+    if (!window.isSecureContext) { say(`Kamera radi samo preko https ili localhost. Koristi „QR iz slike" ili „Nalepi link".`); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       const video = $<HTMLVideoElement>("camVideo");
@@ -63,11 +63,11 @@ export function initScan(): void {
         } catch { /* sledeći kadar */ }
       }, 350);
     } catch (err) {
-      say(`Kamera nije dostupna (${escapeHtml((err as Error).name || "greška")}). Koristi „🖼️ QR iz slike" ili „🔗 Nalepi link".`, "crit");
+      say(`Kamera nije dostupna (${escapeHtml((err as Error).name || "greška")}). Koristi „QR iz slike" ili „Nalepi link".`, "crit");
     }
   });
   $("btnScanImg").addEventListener("click", () => {
-    if (!hasDetector()) { say(`Ovaj browser ne ume da čita QR iz slike — koristi „🔗 Nalepi link računa".`); return; }
+    if (!hasDetector()) { say(`Ovaj browser ne ume da čita QR iz slike — koristi „Nalepi link".`); return; }
     $("scanImgFile").click();
   });
   $("scanImgFile").addEventListener("change", async (e) => {

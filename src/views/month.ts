@@ -1,5 +1,5 @@
 /* ============ Mesečno: unos, budžet, tempo potrošnje, transakcije ============ */
-import { daysInMonth, fmtDate } from "../lib/dates";
+import { daysInMonth, fmtDate, isoLocal } from "../lib/dates";
 import { isFiscalLink } from "../lib/fiscal";
 import { suggestBudget } from "../lib/finance";
 import {
@@ -9,13 +9,36 @@ import {
 import { device, save, state, uid } from "../store";
 import { SHARED, type TxType } from "../types";
 import { expTotals, renderCatBars, renderDonut, renderLines, type Series } from "../ui/charts";
-import { alertDialog, confirmDialog } from "../ui/dialog";
+import { alertDialog, confirmDialog, toast } from "../ui/dialog";
 import { $, escapeHtml, onData } from "../ui/dom";
+import { icon } from "../ui/icons";
+import { closeSheet, initSheet, openSheet } from "../ui/sheet";
 import { commit } from "./app";
 import { renderRecurring } from "./recurring";
 import { clearPendingScan, pendingScanLink } from "./scan";
 
 const MEMBER_SELECTS = ["txMember", "gMember", "aMember", "dMember", "csvMember", "recMember"];
+
+/* dugmad-čipovi koji upravljaju skrivenim <select>-om (select ostaje izvor istine za formu) */
+function renderChoiceChips(boxId: string, selectId: string, label: (value: string, text: string) => string): void {
+  const sel = $<HTMLSelectElement>(selectId);
+  const box = $<HTMLDivElement>(boxId);
+  box.innerHTML = [...sel.options].map((o) => {
+    const on = o.value === sel.value;
+    return `<button type="button" class="chip${on ? " on" : ""}" aria-pressed="${on}" data-choice="${escapeHtml(o.value)}">${label(o.value, o.text)}</button>`;
+  }).join("");
+  onData(box, "choice", (v) => {
+    sel.value = v;
+    sel.dispatchEvent(new Event("change"));
+    renderChoiceChips(boxId, selectId, label);
+  });
+}
+
+const renderMemberChips = () => renderChoiceChips("txMemberChips", "txMember", (_v, text) => escapeHtml(text));
+const renderCatChips = () => renderChoiceChips("txCatChips", "txCat", (v) => {
+  const c = catById(v);
+  return `<span class="cat-dot" style="background:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}`;
+});
 
 export function fillMemberSelects(): void {
   const opts = memberOptions();
@@ -27,6 +50,7 @@ export function fillMemberSelects(): void {
     else if (device && [...s.options].some((o) => o.value === device)) s.value = device;
     else s.value = SHARED;
   });
+  renderMemberChips();
 }
 
 export function fillCatSelect(): void {
@@ -34,6 +58,8 @@ export function fillCatSelect(): void {
   const cur = sel.value;
   sel.innerHTML = catsOf($("txType").value).map((c) => `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join("");
   if (cur && [...sel.options].some((o) => o.value === cur)) sel.value = cur;
+  else sel.value = $("txType").value === "prihod" ? "plata" : "potrosnja"; /* najčešći izbor, ne prvi na listi */
+  renderCatChips();
   updateGoalPick();
 }
 
@@ -55,37 +81,54 @@ export function updateEntryCard(): void {
   const card = $<HTMLDivElement>("txCard");
   card.classList.toggle("rashod", t === "rashod");
   card.classList.toggle("prihod", t === "prihod");
-  $("txFormTitle").textContent = t === "prihod" ? "➕ Novi prihod" : "➖ Novi trošak";
+  $("txFormTitle").textContent = t === "prihod" ? "Novi prihod" : "Novi trošak";
+  $("txSubmit").textContent = t === "prihod" ? "Sačuvaj prihod" : "Sačuvaj trošak";
+  $("txCur").textContent = state.currency;
   document.querySelectorAll<HTMLButtonElement>("#typeSeg button").forEach((x) => {
     x.classList.toggle("active", x.dataset.t === t);
     x.setAttribute("aria-pressed", String(x.dataset.t === t));
   });
-  $<HTMLDivElement>("quickChips").style.display = t === "rashod" ? "flex" : "none";
+  $<HTMLDivElement>("quickWrap").style.display = t === "rashod" ? "" : "none";
+}
+
+/* datum unosa: danas ako je izabran tekući mesec, inače 1. u izabranom mesecu */
+function defaultEntryDate(): string {
+  const now = new Date();
+  const m = state.selMonth;
+  const day = now.getFullYear() === state.year && now.getMonth() === m ? now.getDate() : 1;
+  return isoLocal(new Date(state.year, m, day));
+}
+
+export function openEntry(type?: TxType): void {
+  if (type) setEntryType(type);
+  else updateEntryCard();
+  $("txDate").value = defaultEntryDate();
+  openSheet("entrySheet", "#txAmount");
+}
+
+function closeEntry(): void {
+  closeSheet("entrySheet");
 }
 
 /* brzi unos čestih troškova — popunjava kategoriju i opis */
 const QUICK = [
-  { label: "🏠 Kirija", cat: "dom", note: "Kirija" },
-  { label: "⚡ Struja", cat: "racuni", note: "Struja" },
-  { label: "🏢 Infostan", cat: "racuni", note: "Infostan" },
-  { label: "📶 Internet i TV", cat: "racuni", note: "Internet i TV" },
-  { label: "📱 Telefon", cat: "racuni", note: "Mobilni telefon" },
-  { label: "🛒 Namirnice", cat: "potrosnja", note: "Namirnice" },
-  { label: "⛽ Gorivo", cat: "vozilo", note: "Gorivo" },
-  { label: "🚗 Registracija", cat: "vozilo", note: "Registracija auta" },
-  { label: "🔧 Servis auta", cat: "vozilo", note: "Servis / održavanje" },
-  { label: "👕 Garderoba", cat: "garderoba", note: "Garderoba" },
-  { label: "⌚ Sat / nakit", cat: "garderoba", note: "Sat / nakit" },
-  { label: "📺 Pretplata", cat: "pretplate", note: "Pretplata" },
+  { label: "Namirnice", cat: "potrosnja", note: "Namirnice" },
+  { label: "Gorivo", cat: "vozilo", note: "Gorivo" },
+  { label: "Kirija", cat: "dom", note: "Kirija" },
+  { label: "Struja", cat: "racuni", note: "Struja" },
+  { label: "Infostan", cat: "racuni", note: "Infostan" },
+  { label: "Telefon i internet", cat: "racuni", note: "Telefon i internet" },
 ];
 
 function initQuickChips(): void {
   const box = $<HTMLDivElement>("quickChips");
-  box.innerHTML = QUICK.map((q, i) => `<button type="button" class="chip" data-q="${i}">${q.label}</button>`).join("");
+  box.innerHTML = QUICK.map((q, i) =>
+    `<button type="button" class="chip" data-q="${i}"><span class="cat-dot" style="background:${catById(q.cat).color}"></span>${q.label}</button>`).join("");
   onData(box, "q", (i) => {
     const q = QUICK[Number(i)];
     setEntryType("rashod");
     $("txCat").value = q.cat;
+    renderCatChips();
     updateGoalPick();
     $("txNote").value = q.note;
     $("txAmount").focus();
@@ -94,6 +137,9 @@ function initQuickChips(): void {
 
 export function initMonth(): void {
   initQuickChips();
+  initSheet("entrySheet");
+  $("btnEntryClose").addEventListener("click", closeEntry);
+  $("btnEntryCancel").addEventListener("click", closeEntry);
   $("txType").addEventListener("change", fillCatSelect);
   $("txCat").addEventListener("change", updateGoalPick);
   $("txSearch").addEventListener("input", renderTxTable);
@@ -104,11 +150,12 @@ export function initMonth(): void {
   $<HTMLFormElement>("txForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const amount = parseFloat($("txAmount").value);
-    if (!(amount > 0)) return;
+    const date = $("txDate").value;
+    if (!(amount > 0)) { toast("Upiši iznos veći od nule.", "warn"); $("txAmount").focus(); return; }
+    if (!date) { toast("Izaberi datum.", "warn"); $("txDate").focus(); return; }
     const type = $("txType").value as TxType;
     const category = $("txCat").value;
     const goal = $("txGoal").value;
-    const date = $("txDate").value;
     state.tx.push({
       id: uid(), date, type, category,
       member: $("txMember").value,
@@ -120,9 +167,12 @@ export function initMonth(): void {
       amount,
     });
     clearPendingScan();
-    for (const id of ["txAmount", "txNote", "txGoal", "txWarranty"]) $(id).value = "";
+    for (const id of ["txAmount", "txNote", "txGoal", "txWarranty", "txDate"]) $(id).value = "";
+    state.year = parseInt(date.slice(0, 4), 10);
     state.selMonth = parseInt(date.slice(5, 7), 10) - 1;
+    closeEntry();
     commit();
+    toast(`${type === "prihod" ? "Prihod" : "Trošak"} ${fmt(amount)} je sačuvan.`, "good");
   });
 
   $("btnSuggestBudget").addEventListener("click", async () => {
@@ -162,8 +212,8 @@ function monthStats(m: number) {
   return { tx, k, avg, spent };
 }
 
-/* referentni budžet meseca (plan ili prosek, bez štednje) — koristi ga tempo potrošnje i dnevni limit */
-function budgetTotals(m: number): { refSum: number; spentSum: number } {
+/* referentni budžet meseca (plan ili prosek, bez štednje) — koristi ga tempo potrošnje, dnevni limit i Pregled */
+export function budgetTotals(m: number): { refSum: number; spentSum: number } {
   const { avg, spent } = monthStats(m);
   let refSum = 0, spentSum = 0;
   expCats().forEach((c) => {
@@ -172,6 +222,16 @@ function budgetTotals(m: number): { refSum: number; spentSum: number } {
     if (ref > 0) { refSum += ref; spentSum += spent[c.id] || 0; }
   });
   return { refSum, spentSum };
+}
+
+/* dnevni limit do kraja meseca; null kad mesec nije tekući ili nema plana */
+export function dailyLimit(m: number): { left: number; daysLeft: number; perDay: number } | null {
+  const bt = budgetTotals(m);
+  const now = new Date();
+  if (!(state.year === now.getFullYear() && m === now.getMonth()) || bt.refSum <= 0) return null;
+  const daysLeft = daysInMonth(state.year, m) - now.getDate() + 1;
+  const left = bt.refSum - bt.spentSum;
+  return { left, daysLeft, perDay: left > 0 ? left / daysLeft : 0 };
 }
 
 function renderPace(m: number): void {
@@ -210,11 +270,11 @@ function renderPace(m: number): void {
   const left = refSum - spent;
   const daysLeft = D - upTo + 1;
   if (left <= 0) {
-    note.innerHTML = `<div class="callout" style="border-left-color:var(--crit)">⛔ Plan za ovaj mesec je već potrošen (<b>${fmt(-left)}</b> preko). Svaki novi trošak jede budžet sledećeg meseca.</div>`;
+    note.innerHTML = `<div class="callout crit">Plan za ovaj mesec je već potrošen (<b>${fmt(-left)}</b> preko). Svaki novi trošak jede budžet sledećeg meseca.</div>`;
   } else if (spent <= shouldBe) {
-    note.innerHTML = `<div class="callout" style="border-left-color:var(--good)">✅ Sporiji si od kalendara — potrošeno ${fmtN(spent)} od plana ${fmtN(refSum)}. Ostaje ti <b>${fmt(left)}</b>, tj. <b>${fmt(left / daysLeft)}/dan</b> narednih ${daysLeft} dana.</div>`;
+    note.innerHTML = `<div class="callout good">Sporiji si od kalendara — potrošeno ${fmtN(spent)} od plana ${fmtN(refSum)}. Ostaje ti <b>${fmt(left)}</b>, tj. <b>${fmt(left / daysLeft)}/dan</b> narednih ${daysLeft} dana.</div>`;
   } else {
-    note.innerHTML = `<div class="callout" style="border-left-color:var(--warn)">⚠️ Trošiš brže nego što mesec prolazi (${fmtN(spent)} vs ${fmtN(shouldBe)} „po kalendaru"). Da ostaneš u planu: najviše <b>${fmt(left / daysLeft)}/dan</b> narednih ${daysLeft} dana.</div>`;
+    note.innerHTML = `<div class="callout warn">Trošiš brže nego što mesec prolazi (${fmtN(spent)} vs ${fmtN(shouldBe)} „po kalendaru"). Da ostaneš u planu: najviše <b>${fmt(left / daysLeft)}/dan</b> narednih ${daysLeft} dana.</div>`;
   }
 }
 
@@ -226,12 +286,12 @@ function renderBudget(): void {
   /* YNAB „rollover": neiskorišćeni plan iz prethodnih meseci se prenosi */
   const roll = !!state.budgetRollover;
   const rollBtn = $<HTMLButtonElement>("btnRollover");
-  rollBtn.textContent = roll ? "↪ Prenos: UKLJUČEN" : "↪ Prenos: isključen";
+  rollBtn.textContent = roll ? "Prenos neiskorišćenog: uključen" : "Prenos neiskorišćenog: isključen";
   rollBtn.setAttribute("aria-pressed", String(roll));
   const cumSpent: Record<string, number> = {};
   if (roll) tx.forEach((t) => { if (t.type === "rashod" && monthOf(t) <= m) cumSpent[t.category] = (cumSpent[t.category] || 0) + t.amount; });
-  let html = roll ? `<p class="note" style="margin-bottom:10px">↪ „Dostupno" = plan × ${m + 1} ${m === 0 ? "mesec" : m < 4 ? "meseca" : "meseci"} (jan–${MONTHS_S[m].toLowerCase()}) − sve potrošeno do sada. Neiskorišćeno iz prošlih meseci se prenosi, prekoračenja se odbijaju — kao u YNAB-u.</p>` : "";
-  html += `<table><thead><tr><th>Kategorija</th><th class="num">Tvoj prosek/mes</th><th class="num">Plan (opciono)</th><th class="num">Ovaj mesec</th>${roll ? `<th class="num">Dostupno ↪</th>` : ""}<th>Status</th></tr></thead><tbody>`;
+  let html = roll ? `<p class="note" style="margin-bottom:10px">„Dostupno" = plan × ${m + 1} ${m === 0 ? "mesec" : m < 4 ? "meseca" : "meseci"} (jan–${MONTHS_S[m].toLowerCase()}) − sve potrošeno do sada. Neiskorišćeno iz prošlih meseci se prenosi, prekoračenja se odbijaju.</p>` : "";
+  html += `<table><thead><tr><th>Kategorija</th><th class="num">Tvoj prosek/mes</th><th class="num">Plan (opciono)</th><th class="num">Ovaj mesec</th>${roll ? `<th class="num">Dostupno</th>` : ""}<th>Status</th></tr></thead><tbody>`;
   let refSum = 0, spentSum = 0, anyRef = false;
   expCats().forEach((c) => {
     const a = avg[c.id] || 0, b = state.budgets[c.id] || 0, s = spent[c.id] || 0;
@@ -240,15 +300,13 @@ function renderBudget(): void {
     if (ref > 0) {
       const d = Math.round((100 * (s - ref)) / ref);
       if (c.id === "stednja") {
-        status = s >= ref
-          ? `<span style="color:var(--good-text);font-weight:700">💪 +${d}% više štednje</span>`
-          : `<span style="color:var(--ink-2);font-weight:600">📉 ${d}% manje štednje</span>`;
+        status = s >= ref ? `<span class="pill good">+${d}% više štednje</span>` : `<span class="pill neutral">${d}% manje štednje</span>`;
       } else if (s <= ref) {
-        status = `<span style="color:var(--good-text);font-weight:700">✅ ${d === 0 ? "tačno na planu" : Math.abs(d) + "% ispod"}</span>`;
+        status = `<span class="pill good">${d === 0 ? "tačno na planu" : Math.abs(d) + "% ispod"}</span>`;
       } else if (d <= 10) {
-        status = `<span style="font-weight:600">⚠️ +${d}% iznad</span>`;
+        status = `<span class="pill warn">+${d}% iznad</span>`;
       } else {
-        status = `<span style="color:var(--crit);font-weight:700">🔴 +${d}% iznad</span>`;
+        status = `<span class="pill crit">+${d}% iznad</span>`;
       }
       if (c.id !== "stednja") { refSum += ref; spentSum += s; anyRef = true; }
     }
@@ -257,13 +315,13 @@ function renderBudget(): void {
       if (!(b > 0)) availCell = `<td class="num"><span class="note">—</span></td>`;
       else {
         const avail = b * (m + 1) - (cumSpent[c.id] || 0);
-        availCell = `<td class="num" style="font-weight:700;${avail < 0 ? "color:var(--crit)" : "color:var(--good-text)"}">${fmtN(avail)}</td>`;
+        availCell = `<td class="num" style="font-weight:700;color:${avail < 0 ? "var(--crit-text)" : "var(--good-text)"}">${fmtN(avail)}</td>`;
       }
     }
     html += `<tr>
       <td><span class="cat-dot" style="background:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}</td>
       <td class="num">${a > 0 ? fmtN(a) : "—"}</td>
-      <td class="num"><input class="mini" type="number" min="0" step="100" data-budget="${escapeHtml(c.id)}" value="${b || ""}" placeholder="auto" aria-label="Plan — ${escapeHtml(c.name)}"></td>
+      <td class="num"><input class="mini" type="number" min="0" step="100" inputmode="decimal" data-budget="${escapeHtml(c.id)}" value="${b || ""}" placeholder="auto" aria-label="Plan — ${escapeHtml(c.name)}"></td>
       <td class="num" style="font-weight:600">${fmtN(s)}</td>
       ${availCell}
       <td>${status}</td>
@@ -283,18 +341,18 @@ function renderBudget(): void {
   const praise = $<HTMLDivElement>("budgetPraise");
   if (!anyRef) {
     praise.innerHTML = k === 0
-      ? `<div class="callout">ℹ️ Kad uneseš prvi pun mesec troškova, ovde ću sam projektovati očekivanu potrošnju i pratiti da li si iznad ili ispod svog proseka.</div>`
+      ? `<div class="callout neutral">Kad uneseš prvi pun mesec troškova, ovde ću sam projektovati očekivanu potrošnju i pratiti da li si iznad ili ispod svog proseka.</div>`
       : "";
     return;
   }
   const d = spentSum - refSum;
   const pct = Math.round((100 * Math.abs(d)) / refSum);
   if (d <= 0 && spentSum > 0) {
-    praise.innerHTML = `<div class="callout" style="border-left-color:var(--good)">🎉 <b>Bravo!</b> Ovog meseca ste ${pct === 0 ? "tačno na planu" : `<b>${pct}% ispod</b> svog proseka/plana (−${fmt(Math.abs(d))})`} — taj višak preusmerite u 🎯 ciljeve ili 💎 imovinu, tako se grade dugoročni aseti.</div>`;
+    praise.innerHTML = `<div class="callout good"><b>Bravo!</b> Ovog meseca ste ${pct === 0 ? "tačno na planu" : `<b>${pct}% ispod</b> svog proseka/plana (−${fmt(Math.abs(d))})`} — taj višak preusmerite u ciljeve ili imovinu, tako se grade dugoročni aseti.</div>`;
   } else if (d > 0 && d <= refSum * 0.05) {
-    praise.innerHTML = `<div class="callout">👌 Skoro na planu — svega +${fmt(d)} iznad proseka. Sitnica, ali oko na crvene kategorije.</div>`;
+    praise.innerHTML = `<div class="callout warn">Skoro na planu — svega +${fmt(d)} iznad proseka. Sitnica, ali obratite pažnju na kategorije iznad plana.</div>`;
   } else if (d > 0) {
-    praise.innerHTML = `<div class="callout" style="border-left-color:var(--crit)">😬 Potrošnja je <b>${pct}% iznad</b> proseka/plana (+${fmt(d)}). Pogledajte kategorije označene 🔴 — svaki dinar iznad plana je dinar manje za ciljeve.</div>`;
+    praise.innerHTML = `<div class="callout crit">Potrošnja je <b>${pct}% iznad</b> proseka/plana (+${fmt(d)}). Pogledajte kategorije označene crveno — svaki dinar iznad plana je dinar manje za ciljeve.</div>`;
   } else {
     praise.innerHTML = "";
   }
@@ -310,21 +368,17 @@ function renderMonthBtns(): void {
     b.title = MONTHS[i];
     b.classList.toggle("active", i === state.selMonth);
     b.setAttribute("aria-pressed", String(i === state.selMonth));
-    b.addEventListener("click", () => { state.selMonth = i; save(); renderMonth(); });
+    b.addEventListener("click", () => { state.selMonth = i; commit(); });
     box.appendChild(b);
   });
 }
 
-/* dnevni limit do kraja meseca (kao Toshl/mani) */
 function dailyLimitTile(m: number): string {
-  const bt = budgetTotals(m);
-  const now = new Date();
-  if (!(state.year === now.getFullYear() && m === now.getMonth()) || bt.refSum <= 0) return "";
-  const daysLeft = daysInMonth(state.year, m) - now.getDate() + 1;
-  const left = bt.refSum - bt.spentSum;
-  return `<div class="tile"><div class="label">💳 Dnevno do kraja meseca</div>
-    <div class="value ${left < 0 ? "neg" : "pos"}">${left > 0 ? fmt(left / daysLeft) : fmt(0)}</div>
-    <div class="sub">${left > 0 ? `preostalo ${fmtN(left)} · još ${daysLeft} dana` : `plan probijen za ${fmtN(-left)}`}</div></div>`;
+  const dl = dailyLimit(m);
+  if (!dl) return "";
+  return `<div class="tile"><div class="label">Dnevno do kraja meseca</div>
+    <div class="value ${dl.left < 0 ? "neg" : "pos"}">${fmt(dl.perDay)}</div>
+    <div class="sub">${dl.left > 0 ? `preostalo ${fmtN(dl.left)} · još ${dl.daysLeft} dana` : `plan probijen za ${fmtN(-dl.left)}`}</div></div>`;
 }
 
 export function renderMonth(): void {
@@ -333,12 +387,6 @@ export function renderMonth(): void {
   const m = state.selMonth;
   $("monthCatLbl").textContent = MONTHS[m];
   $("monthTxLbl").textContent = MONTHS[m] + " " + state.year + ".";
-  const dEl = $("txDate");
-  if (!dEl.value || parseInt(dEl.value.slice(5, 7), 10) - 1 !== m || dEl.value.slice(0, 4) !== String(state.year)) {
-    const today = new Date();
-    const day = today.getFullYear() === state.year && today.getMonth() === m ? today.getDate() : 1;
-    dEl.value = `${state.year}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  }
   const tx = txOfYear().filter((t) => monthOf(t) === m && passFilter(t));
   const inc = sum(tx.filter((t) => t.type === "prihod"), (t) => t.amount);
   const exp = sum(tx.filter((t) => t.type === "rashod"), (t) => t.amount);
@@ -361,7 +409,7 @@ function renderTxTable(): void {
   const m = state.selMonth;
   const box = $<HTMLDivElement>("txTable");
   const tx = txOfYear().filter((t) => monthOf(t) === m && passFilter(t)).sort((a, b) => b.date.localeCompare(a.date));
-  if (tx.length === 0) { box.innerHTML = `<div class="empty">Nema transakcija za ovaj mesec i filter — dodaj prvu iznad. 👆</div>`; return; }
+  if (tx.length === 0) { box.innerHTML = `<div class="empty">Nema transakcija za ovaj mesec i filter — dodaj prvu dugmetom „Novi trošak".</div>`; return; }
   const q = ($("txSearch").value || "").trim().toLowerCase();
   const qDigits = q.replace(/\D/g, "");
   const shown = q
@@ -370,18 +418,17 @@ function renderTxTable(): void {
       || (qDigits && String(Math.round(t.amount)).includes(qDigits)))
     : tx;
   if (shown.length === 0) { box.innerHTML = `<div class="empty">Nema rezultata za „${escapeHtml(q)}".</div>`; return; }
-  let html = `<table><thead><tr><th>Datum</th><th>Tip</th><th>Kategorija</th><th>Čije</th><th>Opis</th><th class="num">Iznos</th><th><span class="sr-only">Akcije</span></th></tr></thead><tbody>`;
+  let html = `<table><thead><tr><th>Datum</th><th>Kategorija</th><th>Čije</th><th>Opis</th><th class="num">Iznos</th><th><span class="sr-only">Akcije</span></th></tr></thead><tbody>`;
   shown.forEach((t) => {
     const c = catById(t.category);
     const goal = t.goalId ? state.goals.find((g) => g.id === t.goalId) : null;
     html += `<tr>
       <td>${fmtDate(t.date, false)}</td>
-      <td>${t.type === "prihod" ? "Prihod" : "Rashod"}</td>
       <td><span class="cat-dot" style="background:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}${goal ? ` <span class="note">→ ${escapeHtml(goal.name)}</span>` : ""}</td>
       <td>${memberBadge(t.member)}${t.enteredBy ? `<div class="note">unos: ${escapeHtml(memberName(t.enteredBy))}</div>` : ""}</td>
-      <td>${escapeHtml(t.note) || "<span style='color:var(--muted)'>—</span>"}${isFiscalLink(t.link) ? ` <a href="${escapeHtml(t.link)}" target="_blank" rel="noopener" title="Otvori fiskalni račun" aria-label="Otvori fiskalni račun">🔗</a>` : ""}</td>
+      <td>${escapeHtml(t.note) || "<span class='note'>—</span>"}${isFiscalLink(t.link) ? ` <a href="${escapeHtml(t.link)}" target="_blank" rel="noopener" title="Otvori fiskalni račun" aria-label="Otvori fiskalni račun">${icon("link", 15)}</a>` : ""}</td>
       <td class="num" style="font-weight:600;${t.type === "prihod" ? "color:var(--good-text)" : ""}">${t.type === "prihod" ? "+" : "−"}${fmt(t.amount)}</td>
-      <td><button class="del" type="button" title="Obriši" aria-label="Obriši transakciju" data-del="${escapeHtml(t.id)}">✕</button></td>
+      <td><button class="del" type="button" title="Obriši" aria-label="Obriši transakciju" data-del="${escapeHtml(t.id)}">${icon("trash", 16)}</button></td>
     </tr>`;
   });
   html += `</tbody></table>`;

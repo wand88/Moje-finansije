@@ -4,6 +4,7 @@ import { catById, catsOf, fmt, memberBadge } from "../model";
 import { device, state, uid } from "../store";
 import type { Recurring, TxType } from "../types";
 import { confirmDialog } from "../ui/dialog";
+import { icon } from "../ui/icons";
 import { $, escapeHtml, onData } from "../ui/dom";
 import { commit } from "./app";
 
@@ -60,9 +61,9 @@ export function renderRecurring(): void {
   const due = state.recurring.filter((r) => r.active && r.next <= today);
   const dueBox = $<HTMLDivElement>("recDue");
   dueBox.innerHTML = due.length
-    ? `<div class="callout" style="border-left-color:var(--warn); margin-bottom:14px">
-        ⏰ Dospelo za knjiženje: <b>${due.length}</b> (${due.map((r) => escapeHtml(r.name)).join(", ")})
-        <button class="btn sm" style="margin-left:10px" type="button" id="btnRecPostAll">Proknjiži sve</button>
+    ? `<div class="callout warn" style="margin:0 0 14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+        <span style="flex:1">Dospelo za knjiženje: <b>${due.length}</b> (${due.map((r) => escapeHtml(r.name)).join(", ")})</span>
+        <button class="btn sm" type="button" id="btnRecPostAll">Proknjiži sve</button>
        </div>`
     : "";
   if (due.length) $("btnRecPostAll").addEventListener("click", () => {
@@ -82,11 +83,11 @@ export function renderRecurring(): void {
       <td><span class="cat-dot" style="background:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}</td>
       <td>${memberBadge(r.member)}</td>
       <td class="num" style="font-weight:600">${fmt(r.amount)}</td>
-      <td>${isDue ? `<b style="color:var(--crit)">⏰ ${fmtDate(r.next, false)}</b>` : fmtDate(r.next)}</td>
+      <td>${isDue ? `<span class="pill warn">dospelo ${fmtDate(r.next, false)}</span>` : fmtDate(r.next)}</td>
       <td style="white-space:nowrap">
         ${isDue ? `<button class="btn sm" type="button" data-recpost="${id}">Proknjiži</button> ` : ""}
         <button class="btn ghost sm" type="button" data-recpause="${id}">${r.active ? "Pauziraj" : "Aktiviraj"}</button>
-        <button class="del" type="button" title="Obriši" aria-label="Obriši ponavljajuću transakciju" data-recdel="${id}">✕</button>
+        <button class="del" type="button" title="Obriši" aria-label="Obriši ponavljajuću transakciju" data-recdel="${id}">${icon("trash", 16)}</button>
       </td>
     </tr>`;
   });

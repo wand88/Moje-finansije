@@ -26,7 +26,7 @@ function renderWizard(): void {
   const { map, preview } = job;
   const skipped = job.rows.length - preview.length;
   let html = `
-    <div class="callout" style="margin:14px 0">
+    <div class="callout neutral" style="margin:14px 0">
       Prepoznato <b>${preview.length}</b> transakcija${skipped > 0 ? ` (${skipped} redova preskočeno — bez datuma ili iznosa)` : ""}.
       Ako su kolone pogrešno pogođene, ispravi ih:
     </div>
@@ -57,7 +57,7 @@ function renderWizard(): void {
     html += `</tbody></table></div>`;
     if (preview.length > 300) html += `<p class="note" style="margin-top:6px">Prikazano prvih 300 — uvoz obuhvata svih ${preview.length}.</p>`;
     html += `<div class="settings-row" style="margin-top:14px">
-      <button class="btn" type="button" id="btnCsvImport">✅ Uvezi ${preview.length} transakcija</button>
+      <button class="btn" type="button" id="btnCsvImport">Uvezi ${preview.length} transakcija</button>
       <button class="btn ghost" type="button" id="btnCsvCancel">Otkaži</button>
     </div>`;
   }
@@ -91,8 +91,8 @@ function importCsv(): void {
   state.tx.sort((a, b) => a.date.localeCompare(b.date));
   job = null;
   commit();
-  $("csvWizard").innerHTML = `<div class="callout" style="border-left-color:var(--good); margin-top:14px">
-    ✅ Uvezeno <b>${added}</b> transakcija${dup > 0 ? `, preskočeno ${dup} duplikata` : ""}. Pogledaj 📅 Mesečno i 📊 Pregled.
+  $("csvWizard").innerHTML = `<div class="callout good" style="margin-top:14px">
+    Uvezeno <b>${added}</b> transakcija${dup > 0 ? `, preskočeno ${dup} duplikata` : ""}. Pogledaj Mesečno i Pregled.
   </div>`;
 }
 

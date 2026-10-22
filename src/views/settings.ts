@@ -7,6 +7,7 @@ import { BASE_EXP_CATS, BASE_INC_CATS, expCats, incCats } from "../model";
 import { device, save, setDevice, setState, state, uid, wipe } from "../store";
 import { SHARED, type TxType } from "../types";
 import { alertDialog, confirmDialog, promptDialog, toast } from "../ui/dialog";
+import { icon } from "../ui/icons";
 import { $, escapeHtml, onData } from "../ui/dom";
 import { commit, initInputs, renderAll } from "./app";
 
@@ -22,7 +23,7 @@ function renderMembers(): void {
   const box = $<HTMLDivElement>("memberList");
   box.innerHTML = state.members.map((m) => `
     <div class="member-row">
-      <span class="member-badge">👤 ${escapeHtml(m.name)}</span>
+      <span class="member-badge">${icon("user", 13)}${escapeHtml(m.name)}</span>
       ${m.id === device ? `<span class="note">(ovaj uređaj)</span>` : ""}
       <span class="spacer"></span>
       <button class="btn ghost sm" type="button" data-mrename="${escapeHtml(m.id)}">${t("members.rename")}</button>
@@ -62,7 +63,7 @@ function renderCatList(): void {
   html += state.customCats.map((c) =>
     `<span class="chip" style="cursor:default">${chip(c)}
      <span class="note">(${c.type === "prihod" ? "prihod" : "rashod"})</span>
-     <button class="del" type="button" style="font-size:12px;padding:0 2px" title="Obriši kategoriju" aria-label="Obriši kategoriju ${escapeHtml(c.name)}" data-catdel="${escapeHtml(c.id)}">✕</button></span>`).join("");
+     <button class="del" type="button" style="width:24px; height:24px" title="Obriši kategoriju" aria-label="Obriši kategoriju ${escapeHtml(c.name)}" data-catdel="${escapeHtml(c.id)}">${icon("close", 14)}</button></span>`).join("");
   box.innerHTML = html;
   onData(box, "catdel", async (id) => {
     if (state.tx.some((x) => x.category === id)) {
@@ -157,14 +158,14 @@ export function initSettings(): void {
     save();
     initInputs();
     renderAll();
-    toast("Podaci su uspešno uvezeni. ✅", "good");
+    toast("Podaci su uspešno uvezeni.", "good");
   }));
 
   $("btnMerge").addEventListener("click", () => $("mergeFile").click());
   $("mergeFile").addEventListener("change", (e) => readJsonFile(e.target as HTMLInputElement, (data) => {
     const added = mergeStates(state, migrate(data));
     commit();
-    alertDialog(`Dodato: ${added.tx} transakcija, ${added.goals} ciljeva, ${added.assets} stavki imovine${added.members ? `, ${added.members} članova` : ""}.`, "Spojeno bez duplikata ✅");
+    alertDialog(`Dodato: ${added.tx} transakcija, ${added.goals} ciljeva, ${added.assets} stavki imovine${added.members ? `, ${added.members} članova` : ""}.`, "Spojeno bez duplikata");
   }));
 
   $("btnWipe").addEventListener("click", async () => {

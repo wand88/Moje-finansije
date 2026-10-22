@@ -22,6 +22,14 @@ export function onData(box: ParentNode, attr: string, fn: (value: string, el: HT
 
 /* prebacivanje na tab */
 export function showView(view: string): void {
-  document.querySelectorAll<HTMLElement>("nav button").forEach((x) => x.classList.toggle("active", x.dataset.view === view));
+  document.querySelectorAll<HTMLElement>(".tabbar .tab").forEach((x) => {
+    const on = x.dataset.view === view;
+    x.classList.toggle("active", on);
+    if (x.dataset.view) x.setAttribute("aria-current", on ? "page" : "false");
+  });
+  /* „Više" je aktivno kad je otvoren neki od sporednih tabova (na telefonu) */
+  const secondary = ["proj", "assets", "credit", "data"].includes(view);
+  document.getElementById("btnMore")?.classList.toggle("active", secondary);
   document.querySelectorAll(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + view));
+  window.scrollTo({ top: 0 });
 }

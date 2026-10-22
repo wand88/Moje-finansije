@@ -7,6 +7,7 @@ import { state, uid } from "../store";
 import type { Asset } from "../types";
 import { renderLines, type Series } from "../ui/charts";
 import { confirmDialog, promptAmount, toast } from "../ui/dialog";
+import { icon } from "../ui/icons";
 import { $, escapeHtml, onData } from "../ui/dom";
 import { commit } from "./app";
 
@@ -81,7 +82,7 @@ function renderNetWorthChart(assets: Asset[], debts: Asset[]): void {
   }
   if (labels.length === 1) { aPts.push(aPts[0]); dPts.push(dPts[0]); nPts.push(nPts[0]); labels.push("danas"); }
   const series: Series[] = [{ name: "Imovina", color: "var(--s2)", vals: aPts }];
-  if (debts.length) series.push({ name: "Obaveze", color: "var(--s6)", vals: dPts });
+  if (debts.length) series.push({ name: "Obaveze", color: "var(--s5)", vals: dPts });
   series.push({ name: "Neto vrednost", color: "var(--s1)", vals: nPts });
   renderLines("chartAssets", labels, series);
 }
@@ -99,12 +100,12 @@ export function renderAssets(): void {
     <div class="tile"><div class="label">Neto vrednost</div><div class="value ${net >= 0 ? "pos" : "neg"}">${fmt(net)}</div><div class="sub">imovina − obaveze</div></div>
     <div class="tile"><div class="label">Imovina ukupno</div><div class="value">${fmt(totalA)}</div><div class="sub">${assets.length} ${assets.length === 1 ? "stavka" : "stavki"}</div></div>
     <div class="tile"><div class="label">Obaveze ukupno</div><div class="value ${totalD > 0 ? "neg" : ""}">${totalD > 0 ? "−" : ""}${fmt(totalD)}</div><div class="sub">${debts.length} ${debts.length === 1 ? "kredit/dug" : "kredita/dugova"}</div></div>
-    <div class="tile"><div class="label">🛟 Rezerva</div><div class="value">${reserveTxt}${reserve !== null ? " mes." : ""}</div><div class="sub">${reserve === null ? "unesi troškove i gotovinu" : "gotovina ÷ mesečni troškovi (cilj 3–6)"}</div></div>`;
+    <div class="tile"><div class="label">Hitna rezerva</div><div class="value">${reserveTxt}${reserve !== null ? " mes." : ""}</div><div class="sub">${reserve === null ? "unesi troškove i gotovinu" : "gotovina ÷ mesečni troškovi (cilj 3–6)"}</div></div>`;
 
   renderNetWorthChart(assets, debts);
 
   const box = $<HTMLDivElement>("assetTable");
-  if (assets.length === 0) box.innerHTML = `<div class="empty">Nema stavki za ovaj filter — dodaj prvu iznad. 💎</div>`;
+  if (assets.length === 0) box.innerHTML = `<div class="empty">Nema stavki za ovaj filter — dodaj prvu iznad.</div>`;
   else {
     let html = `<table><thead><tr><th>Naziv</th><th>Vrsta</th><th>Vlasnik</th><th class="num">Prva procena</th><th class="num">Trenutno</th><th class="num">Promena</th><th><span class="sr-only">Akcije</span></th></tr></thead><tbody>`;
     assets.forEach((a) => {
@@ -121,7 +122,7 @@ export function renderAssets(): void {
         <td class="num" style="color:${d >= 0 ? "var(--good-text)" : "var(--crit)"};font-weight:600">${d >= 0 ? "+" : ""}${fmt(d)} (${d >= 0 ? "+" : ""}${pct}%)</td>
         <td style="white-space:nowrap">
           <button class="btn ghost sm" type="button" data-reval="${id}">Ažuriraj</button>
-          <button class="del" type="button" title="Obriši" aria-label="Obriši ${escapeHtml(a.name)}" data-adel="${id}">✕</button>
+          <button class="del" type="button" title="Obriši" aria-label="Obriši ${escapeHtml(a.name)}" data-adel="${id}">${icon("trash", 16)}</button>
         </td>
       </tr>`;
     });
@@ -139,7 +140,7 @@ export function renderAssets(): void {
 
   /* tabela obaveza */
   const dbox = $<HTMLDivElement>("debtTable");
-  if (debts.length === 0) { dbox.innerHTML = `<div class="empty">Nema unetih obaveza — ako nemate kredita, neto vrednost je jednaka imovini. 🎉</div>`; return; }
+  if (debts.length === 0) { dbox.innerHTML = `<div class="empty">Nema unetih obaveza — ako nemate kredita, neto vrednost je jednaka imovini.</div>`; return; }
   let dhtml = `<table><thead><tr><th>Naziv</th><th>Vrsta</th><th>Čija</th><th class="num">Mesečna rata</th><th class="num">Početni dug</th><th class="num">Preostalo</th><th class="num">Otplaćeno</th><th><span class="sr-only">Akcije</span></th></tr></thead><tbody>`;
   debts.forEach((d) => {
     const fst = d.entries[0], lst = d.entries[d.entries.length - 1];
@@ -152,10 +153,10 @@ export function renderAssets(): void {
       <td class="num">${d.rate > 0 ? fmt(d.rate) : "—"}</td>
       <td class="num">${fmt(fst.value)}</td>
       <td class="num" style="font-weight:700;color:var(--crit)">${fmt(lst.value)}</td>
-      <td class="num" style="color:${paid > 0 ? "var(--good-text)" : "var(--ink-2)"};font-weight:600">${paid > 0 ? "✅ " + fmt(paid) : "—"}</td>
+      <td class="num" style="color:${paid > 0 ? "var(--good-text)" : "var(--ink-2)"};font-weight:600">${paid > 0 ? fmt(paid) : "—"}</td>
       <td style="white-space:nowrap">
         <button class="btn ghost sm" type="button" data-dreval="${id}">Ažuriraj</button>
-        <button class="del" type="button" title="Obriši" aria-label="Obriši ${escapeHtml(d.name)}" data-ddel="${id}">✕</button>
+        <button class="del" type="button" title="Obriši" aria-label="Obriši ${escapeHtml(d.name)}" data-ddel="${id}">${icon("trash", 16)}</button>
       </td>
     </tr>`;
   });
@@ -175,7 +176,7 @@ export function renderWarranties(): void {
   const box = $<HTMLDivElement>("warrTable");
   const rows = state.tx.filter((t) => t.warranty).sort((a, b) => a.warranty!.localeCompare(b.warranty!));
   if (!rows.length) {
-    box.innerHTML = `<div class="empty">Pri unosu troška popuni „🛡️ Garancija do" — ovde ćeš pratiti sve rokove na jednom mestu.</div>`;
+    box.innerHTML = `<div class="empty">Pri unosu troška popuni „Garancija do" — ovde ćeš pratiti sve rokove na jednom mestu.</div>`;
     return;
   }
   const today = todayISO();
@@ -183,12 +184,12 @@ export function renderWarranties(): void {
   rows.forEach((tx) => {
     const days = daysBetween(today, tx.warranty!);
     const st = days < 0
-      ? `<span class="note">istekla</span>`
+      ? `<span class="pill neutral">istekla</span>`
       : days <= 30
-        ? `<b style="color:var(--crit)">⚠️ još ${days} ${days === 1 ? "dan" : "dana"}</b>`
-        : `<span style="color:var(--good-text);font-weight:600">✅ još ${days} dana</span>`;
+        ? `<span class="pill crit">još ${days} ${days === 1 ? "dan" : "dana"}</span>`
+        : `<span class="pill good">još ${days} dana</span>`;
     const link = isFiscalLink(tx.link)
-      ? ` <a href="${escapeHtml(tx.link)}" target="_blank" rel="noopener" title="Otvori fiskalni račun" aria-label="Otvori fiskalni račun">🔗</a>` : "";
+      ? ` <a href="${escapeHtml(tx.link)}" target="_blank" rel="noopener" title="Otvori fiskalni račun" aria-label="Otvori fiskalni račun">${icon("link", 15)}</a>` : "";
     html += `<tr${days < 0 ? ' style="opacity:.55"' : ""}>
       <td><b>${escapeHtml(tx.note || catById(tx.category).name)}</b>${link} <span class="note">${fmtN(tx.amount)}</span></td>
       <td>${fmtDate(tx.date)}</td>

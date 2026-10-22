@@ -1,13 +1,16 @@
 /* ============ Pregled ============ */
 import { daysBetween, todayISO } from "../lib/dates";
 import { realFactor } from "../lib/finance";
-import { MONTHS, MONTHS_S, expCats, fmt, fmtN, lastVal, memberBadge, memberIds, monthOf, passFilter, sum, txOfYear } from "../model";
+import { MONTHS, MONTHS_S, catById, expCats, fmt, fmtN, lastVal, memberBadge, memberIds, memberName, monthOf, passFilter, sum, txOfYear } from "../model";
 import { save, state } from "../store";
 import type { Tx } from "../types";
 import { attachTip, el, expTotals, niceMax, renderCatBars, renderDonut, renderLines, roundTop } from "../ui/charts";
-import { $, escapeHtml, showView } from "../ui/dom";
-import { goalMonthlyAvg, goalSaved } from "./goals";
-import { monthsLeft } from "../lib/dates";
+import { $, escapeHtml, onData } from "../ui/dom";
+import { catTile, icon } from "../ui/icons";
+import { commit } from "./app";
+import { goalMonthlyAvg, goalNeeded, goalSaved } from "./goals";
+import { budgetTotals, dailyLimit, openEntry } from "./month";
+import { fmtDate, monthsLeft } from "../lib/dates";
 
 const incOf = (tx: Tx[]) => sum(tx.filter((t) => t.type === "prihod"), (t) => t.amount);
 const expOf = (tx: Tx[]) => sum(tx.filter((t) => t.type === "rashod"), (t) => t.amount);
@@ -23,18 +26,126 @@ function renderNudge(): void {
   const last = state.tx.map((t) => t.date).sort().pop()!;
   const days = daysBetween(last, todayISO());
   if (days < 4) { box.innerHTML = ""; return; }
-  box.innerHTML = `<div class="callout" style="border-left-color:var(--warn); margin:0 0 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap">
-    <span style="flex:1; min-width:180px">👋 Nisi ništa uneo <b>${days} dana</b>. Dva minuta te dele od ažurne slike — ili skeniraj račune u prolazu.</span>
+  box.innerHTML = `<div class="callout warn" style="margin:0 0 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+    <span style="flex:1; min-width:180px">Nisi ništa uneo <b>${days} dana</b>. Dva minuta te dele od ažurne slike — ili skeniraj račune u prolazu.</span>
     <button class="btn sm" type="button" id="nudgeGo">Unesi sada</button>
   </div>`;
-  $("nudgeGo").addEventListener("click", () => {
-    showView("month");
-    $("txAmount").focus();
+  $("nudgeGo").addEventListener("click", () => openEntry("rashod"));
+}
+
+/* ---- kartica izabranog meseca ---- */
+function renderHero(): void {
+  const m = state.selMonth;
+  const tx = txOfYear().filter((t) => monthOf(t) === m && passFilter(t));
+  const inc = incOf(tx), exp = expOf(tx), bal = inc - exp;
+  const { refSum, spentSum } = budgetTotals(m);
+  const dl = dailyLimit(m);
+  const pct = refSum > 0 ? Math.round((100 * spentSum) / refSum) : 0;
+  let planHtml = "";
+  if (refSum > 0) {
+    planHtml = `<div style="display:flex; flex-direction:column; gap:8px">
+      <div class="hero-row"><span>Potrošeno ${pct}% plana</span>${dl && dl.left > 0 ? `<b>${fmt(dl.perDay)} / dan</b>` : `<b>${fmt(spentSum)} od ${fmt(refSum)}</b>`}</div>
+      <div class="hero-bar${pct > 100 ? " over" : ""}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(100, pct)}" aria-label="Potrošeno od plana"><div style="width:${Math.min(100, pct)}%"></div></div>
+      ${dl ? `<span class="hero-note">${dl.left > 0 ? `Možeš da trošiš ${fmt(dl.perDay)} dnevno još ${dl.daysLeft} dana i ostaješ u planu.` : `Plan za ovaj mesec je probijen za ${fmt(-dl.left)}.`}</span>` : ""}
+    </div>`;
+  } else if (tx.length === 0) {
+    planHtml = `<button type="button" class="btn" id="heroAdd">${icon("plus")}Dodaj prvi unos za ${MONTHS[m].toLowerCase()}</button>`;
+  } else {
+    planHtml = `<span class="hero-note">Posle prvog punog meseca aplikacija sama pravi plan iz tvog proseka — ili ga upiši u Mesečnom pregledu.</span>`;
+  }
+  $("dashHero").innerHTML = `
+    <div class="hero-top">
+      <span class="hero-label">Bilans meseca</span>
+      <div class="hero-month">
+        <button type="button" data-hm="-1" aria-label="Prethodni mesec" ${m === 0 ? "disabled" : ""}>${icon("left")}</button>
+        <h2>${MONTHS[m]} ${state.year}.</h2>
+        <button type="button" data-hm="1" aria-label="Sledeći mesec" ${m === 11 ? "disabled" : ""}>${icon("right")}</button>
+      </div>
+    </div>
+    <div class="hero-value">${bal > 0 ? "+" : ""}${fmt(bal)}</div>
+    <div class="hero-split">
+      <div><span>Prihodi</span><b>${fmt(inc)}</b></div>
+      <div><span>Rashodi</span><b>${fmt(exp)}</b></div>
+    </div>
+    ${planHtml}`;
+  onData($("dashHero"), "hm", (d) => {
+    state.selMonth = Math.min(11, Math.max(0, state.selMonth + Number(d)));
+    commit();
   });
+  document.getElementById("heroAdd")?.addEventListener("click", () => openEntry("rashod"));
+}
+
+/* ---- gde ide novac (izabrani mesec) ---- */
+function renderSpend(): void {
+  const m = state.selMonth;
+  $("dashSpendLbl").textContent = MONTHS[m];
+  const totals = expTotals(txOfYear().filter((t) => monthOf(t) === m && passFilter(t)));
+  const total = sum(Object.values(totals), (v) => v);
+  const box = $<HTMLDivElement>("dashSpend");
+  if (total <= 0) { box.innerHTML = `<div class="empty">Još nema troškova u ovom mesecu.</div>`; return; }
+  const rows = expCats().map((c) => ({ ...c, v: totals[c.id] || 0 })).filter((r) => r.v > 0).sort((a, b) => b.v - a.v);
+  const top = rows.slice(0, 4);
+  const rest = sum(rows.slice(4), (r) => r.v);
+  if (rest > 0) top.push({ id: "_ostalo", name: "Ostalo", color: "var(--baseline)", v: rest });
+  const share = (v: number) => Math.round((100 * v) / total);
+  const label = top.map((r) => `${r.name} ${share(r.v)}%`).join(", ");
+  box.innerHTML = `
+    <div class="stack-bar" role="img" aria-label="${escapeHtml(label)}">${top.map((r) => `<div style="width:${(100 * r.v) / total}%; background:${escapeHtml(r.color)}"></div>`).join("")}</div>
+    <div class="cat-rows">${top.map((r) => `
+      <div class="cat-row"><span class="cat-dot" style="background:${escapeHtml(r.color)}; margin:0"></span>
+        <span class="nm">${escapeHtml(r.name)}</span><span class="pc">${share(r.v)}%</span><span class="am">${fmtN(r.v)}</span></div>`).join("")}
+    </div>`;
+}
+
+/* ---- ciljevi (do dva aktivna) ---- */
+function renderDashGoals(): void {
+  const box = $<HTMLDivElement>("dashGoals");
+  const active = state.goals.filter((g) => goalSaved(g) < g.target).slice(0, 2);
+  if (!active.length) {
+    box.innerHTML = state.goals.length
+      ? `<div class="callout good" style="margin:0">Svi ciljevi su ostvareni. Postavi novi u tabu Ciljevi.</div>`
+      : `<div class="empty">Nema ciljeva — letovanje, auto, hitna rezerva? Dodaj prvi u tabu Ciljevi.</div>`;
+    return;
+  }
+  box.innerHTML = active.map((g) => {
+    const saved = goalSaved(g);
+    const pct = Math.min(100, (100 * saved) / g.target);
+    const left = monthsLeft(g.deadline);
+    const needed = goalNeeded(g);
+    const onTrack = left > 0 && needed > 0 && goalMonthlyAvg(g) >= needed;
+    const pill = left <= 0 ? `<span class="pill crit">Rok je prošao</span>`
+      : onTrack ? `<span class="pill good">Na putu</span>` : `<span class="pill neutral">${fmt(needed)} / mes</span>`;
+    return `<div style="display:flex; flex-direction:column; gap:6px; padding:6px 0">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px"><b style="font-weight:600">${escapeHtml(g.name)}</b>${pill}</div>
+      <div class="pbar good" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="Napredak: ${escapeHtml(g.name)}" style="margin:2px 0"><div style="width:${pct}%"></div></div>
+      <div class="g-stats"><span><b style="color:var(--ink)">${fmtN(saved)}</b> od ${fmt(g.target)}</span><span>${Math.round(pct)}%</span></div>
+    </div>`;
+  }).join("");
+}
+
+/* ---- poslednje transakcije ---- */
+function renderRecent(): void {
+  const box = $<HTMLDivElement>("dashRecent");
+  const rows = state.tx.filter(passFilter).slice()
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id)).slice(0, 5);
+  if (!rows.length) { box.innerHTML = `<div class="empty">Još nema unosa. Dugme „+" je uvek pri ruci.</div>`; return; }
+  const today = todayISO();
+  box.innerHTML = rows.map((t) => {
+    const c = catById(t.category);
+    const when = t.date === today ? "danas" : fmtDate(t.date, t.date.slice(0, 4) !== String(state.year));
+    const sub = [t.note ? c.name : "", memberName(t.member), when].filter(Boolean).join(" · ");
+    return `<div class="txrow">${catTile(t.category, c.color)}
+      <div class="meta"><b>${escapeHtml(t.note || c.name)}</b><span>${escapeHtml(sub)}</span></div>
+      <span class="amt${t.type === "prihod" ? " pos" : ""}">${t.type === "prihod" ? "+" : "−"}${fmtN(t.amount)}</span></div>`;
+  }).join("");
 }
 
 export function renderDash(): void {
   renderNudge();
+  renderHero();
+  renderSpend();
+  renderDashGoals();
+  renderRecent();
   document.querySelectorAll(".yearLbl").forEach((e) => (e.textContent = String(state.year)));
   const tx = txOfYear().filter(passFilter);
   const inc = incOf(tx), exp = expOf(tx), saved = savOf(tx);
@@ -77,7 +188,7 @@ function renderIncExp(): void {
   const slot = pw / 12, bw = Math.min(16, (slot - 14) / 2);
   for (let m = 0; m < 12; m++) {
     const cx = mL + slot * m + slot / 2;
-    ([["Prihodi", inc[m], "var(--s1)", cx - bw - 1], ["Rashodi", exp[m], "var(--s6)", cx + 1]] as const).forEach(([name, v, color, x]) => {
+    ([["Prihodi", inc[m], "var(--s3)", cx - bw - 1], ["Rashodi", exp[m], "var(--s1)", cx + 1]] as const).forEach(([name, v, color, x]) => {
       const h = Math.max(v > 0 ? 2 : 0, (ph * v) / maxV);
       const bar = el("path", { d: roundTop(x, mT + ph - h, bw, h, 4), fill: color });
       attachTip(bar, () => `<div class="t-title">${MONTHS[m]}</div>
@@ -153,11 +264,11 @@ function renderYearsCompare(): void {
   const balL = byYear[latest].inc - byYear[latest].exp;
   const balPreal = (byYear[prev].inc - byYear[prev].exp) * rf(prev);
   const d = balPreal !== 0 ? Math.round((100 * (balL - balPreal)) / Math.abs(balPreal)) : null;
-  html += `<div class="callout" style="margin-top:12px">
+  html += `<div class="callout ${d === null ? "neutral" : d >= 0 ? "good" : "warn"}" style="margin-top:12px">
     ${d === null ? `Bilans ${prev}. je bio nula — poređenje nije moguće.`
       : d >= 0
-        ? `📈 <b>Realno napredujete:</b> bilans ${latest}. je <b>${d}% bolji</b> od ${prev}. kad se uračuna inflacija (${fmtN(balL)} vs ${fmtN(balPreal)} u istim cenama).`
-        : `📉 <b>Realno je slabije:</b> bilans ${latest}. je <b>${Math.abs(d)}% slabiji</b> od ${prev}. kad se uračuna inflacija (${fmtN(balL)} vs ${fmtN(balPreal)} u istim cenama) — brojke rastu, ali cene rastu brže.`}
+        ? `<b>Realno napredujete:</b> bilans ${latest}. je <b>${d}% bolji</b> od ${prev}. kad se uračuna inflacija (${fmtN(balL)} vs ${fmtN(balPreal)} u istim cenama).`
+        : `<b>Realno je slabije:</b> bilans ${latest}. je <b>${Math.abs(d)}% slabiji</b> od ${prev}. kad se uračuna inflacija (${fmtN(balL)} vs ${fmtN(balPreal)} u istim cenama) — brojke rastu, ali cene rastu brže.`}
   </div>`;
   box.innerHTML = html;
   box.querySelectorAll<HTMLInputElement>("[data-infl]").forEach((inp) => inp.addEventListener("change", () => {
@@ -188,10 +299,10 @@ function renderBadges(): void {
   const doneGoals = state.goals.length - active.length;
   const mWord = (n: number) => (n === 1 ? "mesec" : n < 5 ? "meseca" : "meseci");
   const b: string[] = [];
-  if (streak > 0) b.push(`<span class="badge win">🔥 ${streak} ${mWord(streak)} zaredom u plusu</span>`);
-  if (inc > 0) b.push(`<span class="badge ${rate >= 20 ? "win" : ""}">${rate >= 20 ? "💪" : "💰"} Stopa štednje ${rate}%${rate >= 20 ? " — pravilo 20% ispunjeno!" : " (preporuka ≥ 20%)"}</span>`);
-  if (active.length) b.push(`<span class="badge ${onTrack === active.length ? "win" : ""}">🎯 ${onTrack}/${active.length} ciljeva na putu</span>`);
-  if (doneGoals > 0) b.push(`<span class="badge win">🏆 ${doneGoals} ${doneGoals === 1 ? "cilj ostvaren" : "ciljeva ostvareno"}</span>`);
+  if (streak > 0) b.push(`<span class="badge win">${streak} ${mWord(streak)} zaredom u plusu</span>`);
+  if (inc > 0) b.push(`<span class="badge ${rate >= 20 ? "win" : ""}">Stopa štednje ${rate}%${rate >= 20 ? " — pravilo 20% ispunjeno" : " (preporuka ≥ 20%)"}</span>`);
+  if (active.length) b.push(`<span class="badge ${onTrack === active.length ? "win" : ""}">${onTrack}/${active.length} ciljeva na putu</span>`);
+  if (doneGoals > 0) b.push(`<span class="badge win">${doneGoals} ${doneGoals === 1 ? "cilj ostvaren" : "ciljeva ostvareno"}</span>`);
   $("dashBadges").innerHTML = b.join("");
 }
 

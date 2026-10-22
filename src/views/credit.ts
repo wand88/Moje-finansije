@@ -1,33 +1,55 @@
-/* ============ Kreditna sposobnost, prevremena otplata, priuštivost auta ============ */
-import { PREPAY_FEE_FREE_LIMIT, carAffordability, maxLoanFor, prepay, type CarInput } from "../lib/finance";
-import { fmt, lastMonthForAvg, lastVal, monthOf, sum, txOfYear } from "../model";
+/* ============ Kreditna sposobnost (EUR / domaća valuta), prevremena otplata, priuštivost auta ============ */
+import { PREPAY_FEE_FREE_LIMIT, annuity, carAffordability, maxLoanFor, prepay, type CarInput } from "../lib/finance";
+import { fmt, fmtIn, lastMonthForAvg, lastVal, monthOf, sum, txOfYear } from "../model";
 import { save, state } from "../store";
 import type { CreditState } from "../types";
 import { $, escapeHtml, num } from "../ui/dom";
 
 /* ---- kreditna sposobnost ---- */
-const CRED_FIELDS = ["crOblig", "crDti", "crApr", "crYears", "crDown"] as const;
-/* Okvirni proseci za Srbiju (jul 2026) — uvek proveri aktuelnu ponudu banke i NBS statistiku */
-const LOAN_PRESETS: Record<string, { apr: number; years: number; label: string; note: string }> = {
-  stambeni: { apr: 5.5, years: 30, label: "Stambeni", note: "EUR-indeksirani, tipično ~5–6% efektivno, po zakonu maksimalno 30 god. Smernica: rata ≤ 28% prihoda." },
-  potrosacki: { apr: 9.9, years: 6, label: "Potrošački", note: "tipično ~9–11% efektivno, do 7–8 god." },
-  kes: { apr: 11.9, years: 5, label: "Keš", note: "dinarski, tipično ~10–13% efektivno, do 5–7 god." },
+const CRED_FIELDS = ["crOblig", "crDti", "crApr", "crMargin", "crFx", "crYears", "crDown"] as const;
+
+/* Okvirne vrednosti za Srbiju — uvek proveri aktuelnu ponudu banke. fix = fiksna kamata, margin = marža uz promenljivu. */
+const LOAN_PRESETS: Record<string, { years: number; label: string; note: string; EUR: { fix: number; margin: number }; HOME: { fix: number; margin: number } }> = {
+  stambeni: {
+    years: 30, label: "Stambeni",
+    note: "Najčešće indeksiran u evrima; po zakonu najduže 30 godina. Smernica: rata ≤ 28% prihoda.",
+    EUR: { fix: 5.5, margin: 3.0 }, HOME: { fix: 8.0, margin: 3.5 },
+  },
+  potrosacki: {
+    years: 6, label: "Potrošački", note: "Najčešće dinarski, rok do 7–8 godina.",
+    EUR: { fix: 7.5, margin: 4.0 }, HOME: { fix: 9.9, margin: 4.5 },
+  },
+  kes: {
+    years: 5, label: "Keš", note: "Najčešće dinarski, rok do 5–7 godina.",
+    EUR: { fix: 8.5, margin: 5.0 }, HOME: { fix: 11.9, margin: 6.0 },
+  },
 };
+/* polazne referentne stope dok ne uključimo automatsko preuzimanje (ECB / NBS) — korisnik ih prekucava */
+const REF_DEFAULT: Record<"EUR" | "HOME", number> = { EUR: 2.0, HOME: 5.5 };
+const FX_DEFAULT: Record<string, number> = { RSD: 117.2, BAM: 1.95583, MKD: 61.5, USD: 1.08 };
+
+const home = () => state.currency;
+const creditState = (): CreditState => (state.credit ||= { incomes: {} });
+/* EUR opcija ima smisla samo kad domaćinstvo ne vodi račune u evrima */
+const loanCur = (): "EUR" | "HOME" => (home() !== "EUR" && creditState().loanCur === "EUR" ? "EUR" : "HOME");
+const loanCode = () => (loanCur() === "EUR" ? "EUR" : home());
+const rateKind = () => creditState().rateKind || "fix";
+const refName = (cur: "EUR" | "HOME") => (cur === "EUR" ? "EURIBOR 6M" : home() === "RSD" ? "BELIBOR 3M" : "Referentna stopa");
 
 function applyLoanPreset(key: string, overwrite: boolean): void {
   const p = LOAN_PRESETS[key];
   if (!p) return;
   if (overwrite) {
-    $("crApr").value = String(p.apr);
+    const v = p[loanCur()];
+    $("crApr").value = String(v.fix);
+    $("crMargin").value = String(v.margin);
     $("crYears").value = String(p.years);
   }
   document.querySelectorAll<HTMLButtonElement>("#loanSeg button").forEach((b) => {
     b.classList.toggle("active", b.dataset.l === key);
     b.setAttribute("aria-pressed", String(b.dataset.l === key));
   });
-  $("loanNote").innerHTML =
-    `<b>${p.label} kredit</b> — ${p.note} Ubačena je okvirna prosečna kamata za Srbiju (jul 2026); ` +
-    `aplikacija radi bez interneta pa ne može sama da povlači aktuelne kamate — <b>prekucaj kamatu i rok prema konkretnoj ponudi</b> (NBS objavljuje prosek na nbs.rs).`;
+  $("loanNote").innerHTML = `<b>${p.label} kredit</b> — ${p.note} Kamate i referentne stope su okvirne — <b>prekucaj ih prema ponudi banke</b>. Aktuelni EURIBOR objavljuje ECB, a BELIBOR i kurs NBS (nbs.rs).`;
 }
 
 /* prosečan mesečni prihod člana u izabranoj godini */
@@ -38,13 +60,10 @@ function avgIncomeOf(member: string): number {
   return months ? sum(tx, (t) => t.amount) / months : 0;
 }
 
-function creditState(): CreditState {
-  return (state.credit ||= { incomes: {} });
-}
-
 function storeCredit(): void {
   const c = creditState();
   CRED_FIELDS.forEach((f) => (c[f] = num(f)));
+  (c.refs ||= {})[loanCur()] = num("crRef");
   document.querySelectorAll<HTMLInputElement>("[data-inc]").forEach((inp) => (c.incomes[inp.dataset.inc!] = parseFloat(inp.value) || 0));
   save();
 }
@@ -52,13 +71,13 @@ function storeCredit(): void {
 /* polje prihoda za svakog člana — pravi se iznova samo kad se promeni spisak članova (da fokus ne skače) */
 let incomesSig = "";
 function renderIncomeInputs(): void {
-  const sig = state.members.map((m) => m.id + ":" + m.name).join("|");
+  const sig = state.members.map((m) => m.id + ":" + m.name).join("|") + "|" + home();
   if (sig === incomesSig) return;
   incomesSig = sig;
   const box = $<HTMLDivElement>("crIncomes");
   box.innerHTML = state.members.map((m) => {
     const id = "crInc-" + escapeHtml(m.id);
-    return `<div><label for="${id}">Neto prihod — ${escapeHtml(m.name)} (mesečno)</label>
+    return `<div><label for="${id}">Neto prihod — ${escapeHtml(m.name)} (${home()}, mesečno)</label>
       <input type="number" id="${id}" data-inc="${escapeHtml(m.id)}" min="0" step="50" inputmode="decimal"></div>`;
   }).join("");
   const saved = state.credit?.incomes || {};
@@ -71,35 +90,105 @@ function renderIncomeInputs(): void {
   });
 }
 
+/* izbor valute i vrste kamate: dugmad, labele i koja polja se vide */
+function syncLoanControls(): void {
+  const cur = loanCur(), kind = rateKind(), hasEur = home() !== "EUR";
+  $<HTMLDivElement>("curSeg").style.display = hasEur ? "" : "none";
+  $("curHomeBtn").textContent = home() === "RSD" ? "RSD (dinarski)" : home();
+  document.querySelectorAll<HTMLButtonElement>("#curSeg button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.cur === cur);
+    b.setAttribute("aria-pressed", String(b.dataset.cur === cur));
+  });
+  document.querySelectorAll<HTMLButtonElement>("#kindSeg button").forEach((b) => {
+    b.classList.toggle("active", b.dataset.k === kind);
+    b.setAttribute("aria-pressed", String(b.dataset.k === kind));
+  });
+  $<HTMLDivElement>("crFixWrap").style.display = kind === "fix" ? "" : "none";
+  $<HTMLDivElement>("crRefWrap").style.display = kind === "var" ? "" : "none";
+  $<HTMLDivElement>("crMarginWrap").style.display = kind === "var" ? "" : "none";
+  $<HTMLDivElement>("crFxWrap").style.display = cur === "EUR" ? "" : "none";
+  $("crRefLbl").textContent = `${refName(cur)} (%)`;
+  $("crFxLbl").textContent = `Kurs: 1 EUR = ? ${home()} (srednji NBS)`;
+  $("crDownLbl").textContent = `Raspoloživo učešće (${loanCode()})`;
+  /* referentna stopa se puni samo kad se promeni valuta — inače bi prepisala ono što korisnik upravo kuca */
+  if (refShownFor !== cur) {
+    refShownFor = cur;
+    $("crRef").value = String(creditState().refs?.[cur] ?? REF_DEFAULT[cur]);
+  }
+}
+let refShownFor = "";
+
 /* posle uvoza/brisanja podataka: vrati polja iz stanja */
 export function initCreditInputs(): void {
   const c = state.credit;
   if (c) CRED_FIELDS.forEach((id) => { if (c[id] !== undefined) $(id).value = String(c[id]); });
+  if (!c?.crFx) $("crFx").value = String(FX_DEFAULT[home()] ?? 1);
   incomesSig = "";
+  refShownFor = "";
   renderIncomeInputs();
+  syncLoanControls();
   /* vrsta kredita: sačuvana ili podrazumevano stambeni (bez prepisivanja unetih vrednosti) */
   applyLoanPreset(c?.loanType || "stambeni", !c);
 }
 
 export function renderCredit(): void {
   renderIncomeInputs();
-  const o = { dti: num("crDti"), oblig: num("crOblig"), apr: num("crApr"), years: num("crYears") };
+  syncLoanControls();
+  const cur = loanCur(), code = loanCode(), kind = rateKind();
+  const fx = cur === "EUR" ? num("crFx") || 1 : 1; /* koliko jedinica domaće valute vredi jedna jedinica valute kredita */
+  const ref = num("crRef"), margin = num("crMargin");
+  const apr = kind === "fix" ? num("crApr") : ref + margin;
+  const o = { dti: num("crDti"), oblig: num("crOblig"), apr, years: num("crYears") };
   const down = num("crDown");
+  const n = Math.max(1, Math.round(o.years * 12));
+  const inLoan = (v: number) => fmtIn(v, code);
+  const approxHome = (v: number) => (cur === "EUR" ? ` <span class="note">≈ ${fmt(v * fx)}</span>` : "");
+
+  $("rateBox").innerHTML = kind === "fix"
+    ? `<span>Fiksna kamata · ${code}</span><b>${apr.toFixed(2).replace(".", ",")}%</b>`
+    : `<span>${refName(cur)} ${ref.toFixed(2).replace(".", ",")}% + marža ${margin.toFixed(2).replace(".", ",")}%</span><b>${apr.toFixed(2).replace(".", ",")}%</b>`;
+
   const incomeOf = (id: string) => parseFloat($(`crInc-${id}`).value) || 0;
-  const scenarios = state.members.map((m) => ({ name: `👤 ${state.members.length > 1 ? "Samo " : ""}${m.name}`, income: incomeOf(m.id) }));
-  if (state.members.length > 1) scenarios.push({ name: "🤝 Zajedno", income: sum(state.members, (m) => incomeOf(m.id)) });
-  $("credResults").innerHTML = scenarios.map((s) => {
-    const { maxRate, principal } = maxLoanFor(s.income, o);
+  const scenarios = state.members.map((m) => ({ name: `${state.members.length > 1 ? "Samo " : ""}${m.name}`, income: incomeOf(m.id) }));
+  if (state.members.length > 1) scenarios.push({ name: "Zajedno", income: sum(state.members, (m) => incomeOf(m.id)) });
+  const results = scenarios.map((s) => ({ ...s, ...maxLoanFor(s.income, o) }));
+  $("credResults").innerHTML = results.map((s) => {
+    const principal = s.principal / fx;
     return `<div class="cred">
       <h3>${escapeHtml(s.name)}</h3>
+      <div class="big">${inLoan(principal + down)}</div>
+      <div class="note" style="margin-bottom:8px">ukupan budžet za kupovinu${cur === "EUR" ? ` · ≈ ${fmt((principal + down) * fx)}` : ""}</div>
       <div class="rrow"><span>Neto prihod</span><b>${fmt(s.income)}</b></div>
-      <div class="rrow"><span>Maks. rata (${o.dti}% − obaveze)</span><b>${fmt(maxRate)}</b></div>
-      <div class="rrow"><span>Maks. kredit (${o.years} god, ${o.apr}%)</span><b>${fmt(principal)}</b></div>
-      <div class="rrow" style="border-top:1px solid var(--grid); margin-top:6px; padding-top:8px"><span>+ učešće</span><b>${fmt(down)}</b></div>
-      <div class="big">${fmt(principal + down)}</div>
-      <div class="note">ukupan budžet za kupovinu</div>
+      <div class="rrow"><span>Maks. rata (${o.dti}% − obaveze)</span><b>${inLoan(s.maxRate / fx)}</b></div>
+      <div class="rrow"><span>Maks. kredit (${o.years} god)</span><b>${inLoan(principal)}</b></div>
+      <div class="rrow"><span>+ učešće</span><b>${inLoan(down)}</b></div>
     </div>`;
   }).join("");
+
+  /* rizici: kurs (EUR kredit, plata u domaćoj valuti) i rast referentne stope (promenljiva kamata) */
+  const main = results[results.length - 1];
+  const box = $<HTMLDivElement>("fxRisk");
+  let html = "";
+  if (main && main.income > 0 && main.maxRate > 0) {
+    const share = (pay: number) => (100 * (pay + o.oblig)) / main.income;
+    const row = (label: string, pay: number) => {
+      const sh = share(pay);
+      const tone = sh > o.dti + 5 ? "crit" : sh > o.dti ? "warn" : "good";
+      return `<div class="result-row"><span>${label}</span><span><b>${fmt(pay)}</b> <span class="pill ${tone}">${sh.toFixed(0)}% prihoda</span></span></div>`;
+    };
+    if (cur === "EUR") {
+      html += `<div class="card-head" style="margin:16px 0 4px"><h2 style="font-size:15px">Ako evro poskupi</h2><span class="note">rata ${inLoan(main.maxRate / fx)}${approxHome(main.maxRate / fx)}</span></div>
+        ${row("Današnji kurs", main.maxRate)}${row("Evro skuplji 10%", main.maxRate * 1.1)}${row("Evro skuplji 20%", main.maxRate * 1.2)}
+        <p class="note">Rata u evrima ostaje ista, ali plata je u ${home() === "RSD" ? "dinarima" : home()} — sa skupljim evrom rata pojede veći deo prihoda.</p>`;
+    }
+    if (kind === "var") {
+      const principalHome = main.principal;
+      const payAt = (bump: number) => annuity(principalHome, (apr + bump) / 1200, n);
+      html += `<div class="card-head" style="margin:16px 0 4px"><h2 style="font-size:15px">Ako ${refName(cur)} poraste</h2><span class="note">scenario: ${escapeHtml(main.name)}</span></div>
+        ${row("Današnja stopa", payAt(0))}${row("+1 procentni poen", payAt(1))}${row("+2 procentna poena", payAt(2))}`;
+    }
+  }
+  box.innerHTML = html;
 }
 
 /* ---- prevremena otplata ---- */
@@ -111,6 +200,10 @@ export function fillPpDebts(): void {
   sel.innerHTML = `<option value="">— ručni unos —</option>` +
     state.debts.filter((d) => lastVal(d) > 0).map((d) => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)} — ${fmt(lastVal(d))}</option>`).join("");
   if (cur && state.debts.some((d) => d.id === cur)) sel.value = cur;
+  /* valuta kredita za prevremenu otplatu */
+  const curSel = $<HTMLSelectElement>("ppCur");
+  curSel.options[0].text = home();
+  curSel.parentElement!.style.display = home() === "EUR" ? "none" : "";
 }
 
 const yrs = (m: number) => (m >= 12 ? `${Math.floor(m / 12)} god ${m % 12} mes` : `${m} mes`);
@@ -119,42 +212,48 @@ export function renderPrepay(): void {
   const P = num("ppPrincipal");
   const n = Math.max(1, Math.round(num("ppMonths")));
   const once = num("ppOnce"), extra = num("ppExtra");
+  const eur = $("ppCur").value === "EUR" && home() !== "EUR";
+  const code = eur ? "EUR" : home();
+  const f = (v: number) => fmtIn(v, code);
   const box = $<HTMLDivElement>("ppResults");
   if (!(P > 0)) { box.innerHTML = `<div class="empty">Unesi preostali dug ili izaberi kredit iz obaveza.</div>`; return; }
   const r = prepay(P, num("ppApr"), n, once, extra);
   let html = `
-    <div class="result-row"><span>Trenutna rata</span><b>${fmt(r.M)}</b></div>
-    <div class="result-row"><span>Preostala kamata bez izmena</span><b>${fmt(r.baseInterest)}</b></div>`;
+    <div class="result-row"><span>Trenutna rata</span><b>${f(r.M)}</b></div>
+    <div class="result-row"><span>Preostala kamata bez izmena</span><b>${f(r.baseInterest)}</b></div>`;
   if (once <= 0 && extra <= 0) {
-    box.innerHTML = html + `<div class="callout" style="margin-top:12px">Upiši jednokratnu uplatu i/ili dodatni mesečni iznos da vidiš uštede.</div>`;
+    box.innerHTML = html + `<div class="callout neutral">Upiši jednokratnu uplatu i/ili dodatni mesečni iznos da vidiš uštede.</div>`;
     return;
   }
   html += `
-    <div class="callout" style="border-left-color:var(--s2); margin-top:12px">
-      <b>Opcija A — skrati rok</b> (rata ${extra > 0 ? `${fmt(r.payA)} umesto ${fmt(r.M)}` : `ostaje ${fmt(r.M)}`}):<br>
+    <div class="callout" style="margin-top:12px">
+      <b>Opcija A — skrati rok</b> (rata ${extra > 0 ? `${f(r.payA)} umesto ${f(r.M)}` : `ostaje ${f(r.M)}`}):<br>
       otplata za <b>${r.nA === Infinity ? "—" : yrs(r.nA)}</b> umesto ${yrs(n)} → <b>kraće za ${r.nA === Infinity ? "—" : yrs(n - r.nA)}</b>,
-      ušteda kamate <b>${fmt(r.savedA)}</b>
+      ušteda kamate <b>${f(r.savedA)}</b>
     </div>
-    <div class="callout" style="border-left-color:var(--s5); margin-top:10px">
+    <div class="callout neutral" style="margin-top:10px">
       <b>Opcija B — smanji ratu</b> (rok ostaje ${yrs(n)}):<br>
       ${once > 0
-        ? `nova rata <b>${fmt(r.MB)}</b> (mesečno lakše za <b>${fmt(r.M - r.MB)}</b>), ušteda kamate <b>${fmt(r.savedB)}</b>${extra > 0 ? ` <span class="note">— dodatno mesečno se računa samo u opciji A</span>` : ""}`
-        : `<span class="note">za ovu opciju je potrebna jednokratna uplata — mesečno dodatno prirodno skraćuje rok (opcija A)</span>`}
+        ? `nova rata <b>${f(r.MB)}</b> (mesečno lakše za <b>${f(r.M - r.MB)}</b>), ušteda kamate <b>${f(r.savedB)}</b>${extra > 0 ? ` — dodatno mesečno se računa samo u opciji A` : ""}`
+        : `za ovu opciju je potrebna jednokratna uplata — mesečno dodatno prirodno skraćuje rok (opcija A)`}
     </div>`;
   if (r.savedA > 0) {
     const diff = r.savedA - Math.max(0, r.savedB);
-    html += `<div class="callout" style="border-left-color:var(--good); margin-top:10px">
-      💡 <b>Preporuka:</b> ako mesečni budžet nije napet (pogledaj Pametni budžet), izaberi <b>skraćenje roka</b> —
-      matematički uvek štedi više${once > 0 ? ` (ovde <b>${fmt(diff)}</b> više nego smanjenje rate)` : ""}.
+    html += `<div class="callout good" style="margin-top:10px">
+      <b>Preporuka:</b> ako mesečni budžet nije napet, izaberi <b>skraćenje roka</b> —
+      matematički uvek štedi više${once > 0 ? ` (ovde <b>${f(diff)}</b> više nego smanjenje rate)` : ""}.
       Smanjenje rate biraj samo ako ti treba vazduha u mesečnom budžetu ili čekate veći trošak (npr. beba, selidba).
     </div>`;
   }
-  const yearly = once + extra * 12;
-  if (yearly > PREPAY_FEE_FREE_LIMIT) {
-    html += `<div class="callout" style="border-left-color:var(--warn); margin-top:10px">
-      ⚠️ Planiraš <b>${fmt(yearly)}</b> prevremene otplate za 12 meseci — preko praga od 1.000.000 RSD, pa banka
-      <b>može</b> naplatiti naknadu do 1% (≈ ${fmt(yearly * 0.01)}). Trik: rasporedi uplate tako da u svakih 12 meseci ostaneš ispod praga, ili proveri da li tvoj kredit ima promenljivu stopu (tada naknade nema).
-    </div>`;
+  /* prag naknade važi u dinarima (Srbija); za EUR kredit preračunava se po kursu iz kalkulatora iznad */
+  if (home() === "RSD") {
+    const yearlyRsd = (once + extra * 12) * (eur ? num("crFx") || 1 : 1);
+    if (yearlyRsd > PREPAY_FEE_FREE_LIMIT) {
+      html += `<div class="callout warn" style="margin-top:10px">
+        Planiraš <b>${fmt(yearlyRsd)}</b> prevremene otplate za 12 meseci — preko praga od 1.000.000 RSD, pa banka
+        <b>može</b> naplatiti naknadu do 1% (≈ ${fmt(yearlyRsd * 0.01)}). Rasporedi uplate tako da u svakih 12 meseci ostaneš ispod praga, ili proveri da li tvoj kredit ima promenljivu stopu (tada naknade nema).
+      </div>`;
+    }
   }
   box.innerHTML = html;
 }
@@ -173,14 +272,13 @@ export function renderCar(): void {
   save();
   const r = carAffordability(v);
   const VERDICT = {
-    ok: ["✅", "Komforno — staje u budžet"],
-    stretch: ["⚠️", "Napeto — preko pravila 15%"],
-    risk: ["⛔", "Rizično — preskupo za tvoj prihod"],
+    ok: "Komforno — staje u budžet",
+    stretch: "Napeto — preko pravila 15%",
+    risk: "Rizično — preskupo za tvoj prihod",
   } as const;
-  const [icon, label] = VERDICT[r.verdict];
   $("carVerdict").innerHTML = v.cIncome > 0
-    ? `<div class="verdict ${r.verdict}"><span>${icon}</span><span>${label}</span><span class="pct">${r.pct.toFixed(1)}%</span></div>`
-    : `<div class="verdict stretch"><span>ℹ️</span><span>Unesi mesečni prihod za ocenu priuštivosti</span></div>`;
+    ? `<div class="verdict ${r.verdict}"><span>${VERDICT[r.verdict]}</span><span class="pct">${r.pct.toFixed(1)}%</span></div>`
+    : `<div class="verdict stretch"><span>Unesi mesečni prihod za ocenu priuštivosti</span></div>`;
   $("carResults").innerHTML = `
     <div class="result-row"><span>Iznos kredita</span><b>${fmt(r.principal)}</b></div>
     <div class="result-row"><span>Mesečna rata</span><b>${fmt(r.payment)}</b></div>
@@ -193,17 +291,37 @@ export function renderCar(): void {
 
 export function initCredit(): void {
   document.querySelectorAll<HTMLButtonElement>("#loanSeg button").forEach((b) => b.addEventListener("click", () => {
-    applyLoanPreset(b.dataset.l || "stambeni", true);
     creditState().loanType = b.dataset.l;
+    applyLoanPreset(b.dataset.l || "stambeni", true);
     storeCredit();
     renderCredit();
   }));
-  CRED_FIELDS.forEach((id) => $(id).addEventListener("input", () => { storeCredit(); renderCredit(); }));
+  document.querySelectorAll<HTMLButtonElement>("#curSeg button").forEach((b) => b.addEventListener("click", () => {
+    storeCredit(); /* sačuvaj referentnu stopu tekuće valute pre prebacivanja */
+    const prev = loanCur();
+    creditState().loanCur = b.dataset.cur as "EUR" | "HOME";
+    /* učešće je u valuti kredita — preračunaj ga po kursu da ne bi 20.000 RSD postalo 20.000 € */
+    const fx = num("crFx") || 1, down = num("crDown");
+    if (prev !== loanCur() && down > 0) {
+      $("crDown").value = String(loanCur() === "EUR" ? Math.round(down / fx / 100) * 100 : Math.round((down * fx) / 1000) * 1000);
+    }
+    syncLoanControls();
+    applyLoanPreset(creditState().loanType || "stambeni", true);
+    storeCredit();
+    renderCredit();
+  }));
+  document.querySelectorAll<HTMLButtonElement>("#kindSeg button").forEach((b) => b.addEventListener("click", () => {
+    creditState().rateKind = b.dataset.k as "fix" | "var";
+    storeCredit();
+    renderCredit();
+  }));
+  [...CRED_FIELDS, "crRef"].forEach((id) => $(id).addEventListener("input", () => { storeCredit(); renderCredit(); }));
   $("ppDebt").addEventListener("change", () => {
     const d = state.debts.find((x) => x.id === $("ppDebt").value);
     if (d) $("ppPrincipal").value = String(lastVal(d));
     renderPrepay();
   });
-  PP_FIELDS.forEach((id) => $(id).addEventListener("input", renderPrepay));
+  [...PP_FIELDS, "ppCur"].forEach((id) => $(id).addEventListener("input", renderPrepay));
+  $("ppCur").addEventListener("change", renderPrepay);
   CAR_FIELDS.forEach((id) => $(id).addEventListener("input", renderCar));
 }

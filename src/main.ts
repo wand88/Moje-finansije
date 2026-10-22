@@ -1,6 +1,8 @@
 /* ============ Moje finansije — ulazna tačka ============ */
+import "@fontsource-variable/inter";
 import "./styles.css";
 import { applyStaticI18n, t } from "./i18n";
+import { hydrateIcons } from "./ui/icons";
 import { setSaveErrorHandler } from "./store";
 import { hideTip } from "./ui/charts";
 import { toast } from "./ui/dialog";
@@ -18,6 +20,7 @@ import { initSettings } from "./views/settings";
 
 setSaveErrorHandler(() => toast(t("toast.saveFailed"), "crit", 8000));
 applyStaticI18n();
+hydrateIcons();
 
 initNav();
 initMonth();

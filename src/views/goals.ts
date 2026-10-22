@@ -4,6 +4,7 @@ import { MONTHS, fmt, memberBadge, sum } from "../model";
 import { state, uid } from "../store";
 import type { Goal } from "../types";
 import { confirmDialog } from "../ui/dialog";
+import { icon } from "../ui/icons";
 import { $, escapeHtml, onData } from "../ui/dom";
 import { commit } from "./app";
 
@@ -27,10 +28,10 @@ export function goalNeeded(g: Goal): number {
 }
 
 const GOAL_IDEAS = [
-  "Učešće za stan 🏠", "Kupovina auta 🚗", "Letovanje ✈️", "Zimovanje ⛷️",
-  "Hitna rezerva (3–6 meseci) 🛟", "Renoviranje 🔨", "Nameštaj 🛋️", "Svadba 💍",
-  "Beba 👶", "Školovanje dece 🎓", "Investiciono zlato 🪙", "Sat ⌚",
-  "Tehnika / laptop 💻", "Pokretanje biznisa 🚀", "Penzija / dugoročno 🌅", "Zdravlje / stomatolog 🦷",
+  "Učešće za stan", "Kupovina auta", "Letovanje", "Zimovanje",
+  "Hitna rezerva (3–6 meseci)", "Renoviranje", "Nameštaj", "Svadba",
+  "Beba", "Školovanje dece", "Investiciono zlato", "Sat",
+  "Tehnika / laptop", "Pokretanje biznisa", "Penzija / dugoročno", "Zdravlje / stomatolog",
 ];
 
 export function initGoals(): void {
@@ -71,10 +72,10 @@ export function renderGoals(): void {
     const needed = goalNeeded(g);
     const avg = goalMonthlyAvg(g);
     let status: string;
-    if (done) status = `<div class="g-status ok">✅ Cilj ostvaren!</div>`;
-    else if (left <= 0) status = `<div class="g-status behind">⏰ Rok je prošao — nedostaje ${fmt(g.target - saved)}</div>`;
-    else if (avg >= needed && avg > 0) status = `<div class="g-status ok">✅ Na putu si — prosek uplata ${fmt(avg)}/mes ≥ potrebno ${fmt(needed)}/mes</div>`;
-    else status = `<div class="g-status ${avg > 0 ? "behind" : "neutral"}">📌 Potrebno ${fmt(needed)}/mes narednih ${left} mes.${avg > 0 ? ` (tvoj prosek: ${fmt(avg)}/mes)` : ""}</div>`;
+    if (done) status = `<div class="g-status ok">Cilj ostvaren</div>`;
+    else if (left <= 0) status = `<div class="g-status behind">Rok je prošao — nedostaje ${fmt(g.target - saved)}</div>`;
+    else if (avg >= needed && avg > 0) status = `<div class="g-status ok">Na putu si — prosek uplata ${fmt(avg)}/mes ≥ potrebno ${fmt(needed)}/mes</div>`;
+    else status = `<div class="g-status ${avg > 0 ? "behind" : "neutral"}">Potrebno ${fmt(needed)}/mes narednih ${left} mes.${avg > 0 ? ` (tvoj prosek: ${fmt(avg)}/mes)` : ""}</div>`;
     const [dy, dm] = g.deadline.split("-").map(Number);
     const card = document.createElement("div");
     card.className = "goal";
@@ -86,7 +87,7 @@ export function renderGoals(): void {
       ${status}
       <div class="g-foot">
         <span class="note">Uplate: Mesečno → Štednja → izaberi cilj</span>
-        <button class="del" type="button" title="Obriši cilj" aria-label="Obriši cilj ${escapeHtml(g.name)}" data-goal="${escapeHtml(g.id)}">✕</button>
+        <button class="del" type="button" title="Obriši cilj" aria-label="Obriši cilj ${escapeHtml(g.name)}" data-goal="${escapeHtml(g.id)}">${icon("trash", 16)}</button>
       </div>`;
     grid.appendChild(card);
   });
