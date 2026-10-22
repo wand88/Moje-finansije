@@ -1216,7 +1216,7 @@ function renderLines(containerId, labels, series, tipExtra){
     const hit = el("rect",{x:xOf(i)-pw/Math.max(1,n-1)/2, y:mT, width:pw/Math.max(1,n-1), height:ph, fill:"transparent"});
     attachTip(hit, ()=>`<div class="t-title">${labels[i]}</div>` +
       series.map(s=> (s.vals[i]==null || !isFinite(s.vals[i])) ? "" :
-        `<div class="t-row"><span><i style="background:${s.color}"></i>${s.name}</span><b>${fmt(s.vals[i])}</b></div>`).join("") +
+        `<div class="t-row"><span><i style="background:${escapeHtml(s.color)}"></i>${escapeHtml(s.name)}</span><b>${fmt(s.vals[i])}</b></div>`).join("") +
       (tipExtra ? tipExtra(i) : ""));
     svg.appendChild(hit);
   }
@@ -1264,7 +1264,7 @@ function renderDonut(containerId, rows, centerLabel){
   legend.className = "donut-legend";
   legend.innerHTML = slices.map(s=>`
     <div class="dl-row">
-      <span class="cat-dot" style="background:${s.color}"></span>
+      <span class="cat-dot" style="background:${escapeHtml(s.color)}"></span>
       <span class="dl-name">${escapeHtml(s.name)}</span>
       <span class="dl-val">${fmt(s.v)}</span>
       <span class="dl-pct">${(100*s.v/total).toFixed(0)}%</span>
@@ -1321,7 +1321,7 @@ function renderCatBars(containerId, totals){
     const lbl = el("text",{x:mL-10,y:y+12,"text-anchor":"end",fill:"var(--ink-2)","font-size":12.5,"font-weight":600});
     lbl.textContent = r.name; svg.appendChild(lbl);
     const bar = el("path",{d:roundRight(mL, y, w, 16, 4), fill:r.color});
-    attachTip(bar, ()=>`<div class="t-title">${r.name}</div><div class="t-row"><span>Ukupno</span><b>${fmt(r.v)}</b></div>`);
+    attachTip(bar, ()=>`<div class="t-title">${escapeHtml(r.name)}</div><div class="t-row"><span>Ukupno</span><b>${fmt(r.v)}</b></div>`);
     svg.appendChild(bar);
     const val = el("text",{x:mL+w+8,y:y+12,fill:"var(--ink)","font-size":12,"font-weight":600});
     val.textContent = fmt(r.v); svg.appendChild(val);
@@ -1526,7 +1526,7 @@ function renderAnnualTable(tx){
   html += `<tr><td><b>Prihodi</b></td>${incRow.map(v=>`<td class="num">${v?fmtN(v):"–"}</td>`).join("")}<td class="num"><b>${fmtN(incRow.reduce((a,b)=>a+b,0))}</b></td></tr>`;
   EXP_CATS.forEach(c=>{
     const row = grid[c.id], sum = row.reduce((a,b)=>a+b,0);
-    html += `<tr><td><span class="cat-dot" style="background:${c.color}"></span>${c.name}</td>${row.map(v=>`<td class="num">${v?fmtN(v):"–"}</td>`).join("")}<td class="num"><b>${fmtN(sum)}</b></td></tr>`;
+    html += `<tr><td><span class="cat-dot" style="background:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}</td>${row.map(v=>`<td class="num">${v?fmtN(v):"–"}</td>`).join("")}<td class="num"><b>${fmtN(sum)}</b></td></tr>`;
   });
   const expRow = Array(12).fill(0);
   Object.values(grid).forEach(r=>r.forEach((v,i)=>expRow[i]+=v));
@@ -1562,7 +1562,7 @@ function fillCatSelect(){
   const type = document.getElementById("txType").value;
   const sel = document.getElementById("txCat");
   const cats = type==="prihod" ? INC_CATS : EXP_CATS;
-  sel.innerHTML = cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+  sel.innerHTML = cats.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join("");
   updateGoalPick();
 }
 function updateGoalPick(){
@@ -1792,7 +1792,7 @@ function renderBudget(){
       if(c.id!=="stednja"){ refSum+=ref; spentSum+=s; anyRef=true; }
     }
     html += `<tr>
-      <td><span class="cat-dot" style="background:${c.color}"></span>${c.name}</td>
+      <td><span class="cat-dot" style="background:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}</td>
       <td class="num">${a>0?fmtN(a):"—"}</td>
       <td class="num"><input class="mini" type="number" min="0" step="100" data-budget="${c.id}" value="${b||""}" placeholder="auto"></td>
       <td class="num" style="font-weight:600">${fmtN(s)}</td>
@@ -1901,7 +1901,7 @@ function renderTxTable(){
     html += `<tr>
       <td>${t.date.slice(8,10)}.${t.date.slice(5,7)}.</td>
       <td>${t.type==="prihod"?"Prihod":"Rashod"}</td>
-      <td><span class="cat-dot" style="background:${c.color}"></span>${c.name}${goal?` <span class="note">→ ${escapeHtml(goal.name)}</span>`:""}</td>
+      <td><span class="cat-dot" style="background:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}${goal?` <span class="note">→ ${escapeHtml(goal.name)}</span>`:""}</td>
       <td>${memberBadge(t.member)}${t.enteredBy?`<div class="note">unos: ${escapeHtml(memberName(t.enteredBy))}</div>`:""}</td>
       <td>${escapeHtml(t.note)||"<span style='color:var(--muted)'>—</span>"}${t.link&&/^https:\/\/suf\.purs\.gov\.rs\//i.test(t.link)?` <a href="${escapeHtml(t.link)}" target="_blank" rel="noopener" title="Otvori fiskalni račun">🔗</a>`:""}</td>
       <td class="num" style="font-weight:600;${t.type==="prihod"?"color:var(--good-text)":""}">${t.type==="prihod"?"+":"−"}${fmt(t.amount)}</td>
@@ -1918,7 +1918,9 @@ function renderTxTable(){
 }
 
 /* ============ Ponavljajuće transakcije ============ */
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+/* lokalni datum YYYY-MM-DD (toISOString je UTC, pa posle ponoći vraća jučerašnji dan) */
+function isoLocal(d){ d = d || new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function todayISO(){ return isoLocal(); }
 function recNext(day, fromISO){
   /* prva sledeća pojava datog dana u mesecu, počev od fromISO (uključivo) */
   const from = fromISO ? new Date(fromISO) : new Date();
@@ -1926,16 +1928,16 @@ function recNext(day, fromISO){
   if(d < new Date(from.getFullYear(), from.getMonth(), from.getDate(), 0)) {
     d = new Date(from.getFullYear(), from.getMonth()+1, day, 12);
   }
-  return d.toISOString().slice(0,10);
+  return isoLocal(d);
 }
 function recAdvance(dateISO, day){
   const d = new Date(dateISO);
   const n = new Date(d.getFullYear(), d.getMonth()+1, day, 12);
-  return n.toISOString().slice(0,10);
+  return isoLocal(n);
 }
 function fillRecCat(){
   const cats = document.getElementById("recType").value==="prihod" ? INC_CATS : EXP_CATS;
-  document.getElementById("recCat").innerHTML = cats.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+  document.getElementById("recCat").innerHTML = cats.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join("");
 }
 document.getElementById("recType").addEventListener("change", fillRecCat);
 document.getElementById("recForm").addEventListener("submit", e=>{
@@ -1999,7 +2001,7 @@ function renderRecurring(){
     const isDue = r.active && r.next <= today;
     html += `<tr style="${r.active?"":"opacity:.5"}">
       <td><b>${escapeHtml(r.name)}</b>${r.type==="prihod"?` <span class="note">(prihod)</span>`:""}</td>
-      <td><span class="cat-dot" style="background:${c.color}"></span>${c.name}</td>
+      <td><span class="cat-dot" style="background:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}</td>
       <td>${memberBadge(r.member)}</td>
       <td class="num" style="font-weight:600">${fmt(r.amount)}</td>
       <td>${isDue?`<b style="color:var(--crit)">⏰ ${r.next.slice(8,10)}.${r.next.slice(5,7)}.</b>`:`${r.next.slice(8,10)}.${r.next.slice(5,7)}.${r.next.slice(0,4)}.`}</td>
@@ -2043,7 +2045,7 @@ function monthsLeft(deadline){
 }
 function goalMonthlyAvg(g){
   const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-90);
-  const cs = cutoff.toISOString().slice(0,10);
+  const cs = isoLocal(cutoff);
   const sum = state.tx.filter(t=>t.goalId===g.id && t.date>=cs).reduce((s,t)=>s+t.amount,0);
   return sum/3;
 }
@@ -2214,8 +2216,8 @@ document.getElementById("assetForm").addEventListener("submit", e=>{
   renderAll();
 });
 function setAssetDateDefault(){
-  document.getElementById("aDate").value = new Date().toISOString().slice(0,10);
-  document.getElementById("dDate").value = new Date().toISOString().slice(0,10);
+  document.getElementById("aDate").value = todayISO();
+  document.getElementById("dDate").value = todayISO();
 }
 document.getElementById("debtForm").addEventListener("submit", e=>{
   e.preventDefault();
@@ -2283,7 +2285,7 @@ function renderAssets(){
       return s + (past.length ? past[past.length-1].value : 0);
     },0);
     while(cur <= end && labels.length<36){
-      const cutoff = new Date(cur.getFullYear(), cur.getMonth()+1, 0).toISOString().slice(0,10);
+      const cutoff = isoLocal(new Date(cur.getFullYear(), cur.getMonth()+1, 0));
       const av = sumAt(assets, cutoff), dv = sumAt(debts, cutoff);
       aPts.push(av); dPts.push(dv); nPts.push(av-dv);
       labels.push(MONTHS_S[cur.getMonth()]+" "+String(cur.getFullYear()).slice(2));
@@ -2324,7 +2326,7 @@ function renderAssets(){
     if(inp===null) return;
     const v = parseFloat(String(inp).replace(",", "."));
     if(!(v>=0)){ alert("Neispravan iznos."); return; }
-    a.entries.push({date: new Date().toISOString().slice(0,10), value: v});
+    a.entries.push({date: todayISO(), value: v});
     a.entries.sort((x,y)=>x.date.localeCompare(y.date));
     save(); renderAll();
   }));
@@ -2365,7 +2367,7 @@ function renderAssets(){
       if(inp===null) return;
       const v = parseFloat(String(inp).replace(",", "."));
       if(!(v>=0)){ alert("Neispravan iznos."); return; }
-      d.entries.push({date: new Date().toISOString().slice(0,10), value: v});
+      d.entries.push({date: todayISO(), value: v});
       d.entries.sort((x,y)=>x.date.localeCompare(y.date));
       save(); renderAll();
     }));
@@ -2640,7 +2642,7 @@ function decodeFiscalUrl(raw){
     const d = new Date(ts);
     if(amount > 0 && amount < 100000000 && d.getFullYear() >= 2021 && d.getFullYear() <= 2035){
       res.amount = Math.round(amount*100)/100;
-      res.date = new Date(ts - d.getTimezoneOffset()*60000).toISOString().slice(0,10);
+      res.date = isoLocal(d);
     }
     return res;
   }catch(e){ return null; }
@@ -2912,7 +2914,7 @@ function renderCsvWizard(){
         <td style="white-space:nowrap">${p.date.slice(8,10)}.${p.date.slice(5,7)}.${p.date.slice(2,4)}.</td>
         <td>${escapeHtml(p.desc)||"<span class='note'>—</span>"}</td>
         <td class="num" style="font-weight:600;${p.type==="prihod"?"color:var(--good-text)":""}">${p.type==="prihod"?"+":"−"}${fmtN(p.amount)}</td>
-        <td><select data-csvcat="${i}">${cats.map(c=>`<option value="${c.id}" ${c.id===p.cat?"selected":""}>${c.name}</option>`).join("")}</select></td>
+        <td><select data-csvcat="${i}">${cats.map(c=>`<option value="${escapeHtml(c.id)}" ${c.id===p.cat?"selected":""}>${escapeHtml(c.name)}</option>`).join("")}</select></td>
       </tr>`;
     });
     html += `</tbody></table></div>`;
@@ -2980,11 +2982,11 @@ document.getElementById("catForm").addEventListener("submit", e=>{
 function renderCatList(){
   const box = document.getElementById("catList");
   let html = BASE_EXP_CATS.concat(BASE_INC_CATS).map(c=>
-    `<span class="chip" style="cursor:default"><span class="cat-dot" style="background:${c.color}"></span>${c.name}</span>`).join("");
+    `<span class="chip" style="cursor:default"><span class="cat-dot" style="background:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}</span>`).join("");
   html += state.customCats.map(c=>
-    `<span class="chip" style="cursor:default"><span class="cat-dot" style="background:${c.color}"></span>${escapeHtml(c.name)}
+    `<span class="chip" style="cursor:default"><span class="cat-dot" style="background:${escapeHtml(c.color)}"></span>${escapeHtml(c.name)}
      <span class="note">(${c.type==="prihod"?"prihod":"rashod"})</span>
-     <button class="del" style="font-size:12px;padding:0 2px" title="Obriši kategoriju" data-catdel="${c.id}">✕</button></span>`).join("");
+     <button class="del" style="font-size:12px;padding:0 2px" title="Obriši kategoriju" data-catdel="${escapeHtml(c.id)}">✕</button></span>`).join("");
   box.innerHTML = html;
   box.querySelectorAll("[data-catdel]").forEach(b=>b.addEventListener("click",()=>{
     const id = b.dataset.catdel;
@@ -3031,7 +3033,7 @@ document.getElementById("btnExport").addEventListener("click", ()=>{
   const blob = new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `moje-finansije-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `moje-finansije-${todayISO()}.json`;
   a.click(); URL.revokeObjectURL(a.href);
 });
 document.getElementById("btnImport").addEventListener("click", ()=>document.getElementById("importFile").click());
